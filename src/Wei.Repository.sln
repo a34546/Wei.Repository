@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29418.71
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wei.Repository", "Wei.Repository\Wei.Repository.csproj", "{F05B885D-3428-4179-B3E4-67F9156BBE13}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "UnitTest", "UnitTest", "{2A49449C-90DD-4A82-9ABF-415F54518B7C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wei.Repository.Test", "Wei.Repository.Test\Wei.Repository.Test.csproj", "{DC76D527-30F4-458A-945D-99CA335A31CE}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F05B885D-3428-4179-B3E4-67F9156BBE13}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F05B885D-3428-4179-B3E4-67F9156BBE13}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F05B885D-3428-4179-B3E4-67F9156BBE13}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F05B885D-3428-4179-B3E4-67F9156BBE13}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC76D527-30F4-458A-945D-99CA335A31CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC76D527-30F4-458A-945D-99CA335A31CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC76D527-30F4-458A-945D-99CA335A31CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC76D527-30F4-458A-945D-99CA335A31CE}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{DC76D527-30F4-458A-945D-99CA335A31CE} = {2A49449C-90DD-4A82-9ABF-415F54518B7C}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4DFBECCF-39CA-4B99-BAA9-81DAD4082463}
+	EndGlobalSection
+EndGlobal
