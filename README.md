@@ -9,17 +9,18 @@
 ```cs
 public class User : Entity
 {
-	[StringLength(50)]
+    [StringLength(50)]
     public string Name { get; set; }
-	[StringLength(50)]
-	public string Mobile { get; set; }
+    
+    [StringLength(50)]
+    public string Mobile { get; set; }
 }
 ```
 2. DbContext继承UnitOfWorkDbContext,如果不需要DbContext，可以忽略该步骤
 ```cs
 public class DemoDbContext : UnitOfWorkDbContext
 {
-    public ChimpDbContext(DbContextOptions options) : base(options)
+    public DemoDbContext(DbContextOptions options) : base(options)
     {
     }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -32,22 +33,22 @@ public class DemoDbContext : UnitOfWorkDbContext
 3. 注入服务,修改Startup.cs,添加AddRepository
 ```cs
 public void ConfigureServices(IServiceCollection services)
-        {
-            ...
-            services.AddRepository(ops =>
-            {
-                ops.UseMySql("");
-            });
-            services.AddControllers();
-            ...
-        }
+{
+    ...
+    services.AddRepository(ops =>
+    {
+	ops.UseMySql("mysql字符串");
+    });
+    services.AddControllers();
+    ...
+}
 ```
 4.  用泛型Repository在Controller中使用
 ```cs
 public class HomeController : ControllerBase
 {
     readonly IRepository<User> _userRepository;
-	readonly IUnitOfWork _unitOfWork;
+    readonly IUnitOfWork _unitOfWork;
     public HomeController(IRepository<User> userRepository, IUnitOfWork unitOfWork)
     {
         _userRepository = userRepository;
@@ -202,8 +203,8 @@ using (var tran = _unitOfWork.BeginTransaction())
 {
     try
     {
-        await _unitOfWork.ExecuteAsync("insert user(id,name) values(@Id,@Name)",user1,tran);
-        await _unitOfWork.ExecuteAsync("insert user(id,name) values(@Id,@Name)",user1,tran);
+        await _unitOfWork.ExecuteAsync("insert user(id,name) values(@Id,@Name)", user1, tran);
+        await _unitOfWork.ExecuteAsync("insert user(id,name) values(@Id,@Name)", user1, tran);
         tran.Commit();
     }
     catch (Exception e)
@@ -221,8 +222,7 @@ using (var tran = _unitOfWork.BeginTransaction())
         await _userRepository.InsertAsync(user1);
         await _unitOfWork.SaveChangesAsync();
 
-        await _unitOfWork.ExecuteAsync("insert user(id,name) values(@Id,@Name)",
-            user2);
+        await _unitOfWork.ExecuteAsync("insert user(id,name) values(@Id,@Name)", user2);
         tran.Commit();
     }
     catch (Exception e)
