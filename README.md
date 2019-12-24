@@ -37,7 +37,7 @@ public void ConfigureServices(IServiceCollection services)
     ...
     services.AddRepository(ops =>
     {
-	ops.UseMySql("mysql字符串");
+	ops.UseMySql("server = 127.0.0.1;database=demo;uid=root;password=root;");
     });
     services.AddControllers();
     ...
