@@ -26,12 +26,30 @@ namespace Wei.Repository
             _context = context;
         }
 
+        protected static Expression<Func<TEntity, bool>> CreateEqualityExpressionForId(TPrimaryKey id)
+        {
+            var lambdaParam = Expression.Parameter(typeof(TEntity));
+
+            var lambdaBody = Expression.Equal(
+                Expression.PropertyOrField(lambdaParam, "Id"),
+                Expression.Constant(id, typeof(TPrimaryKey))
+            );
+
+            return Expression.Lambda<Func<TEntity, bool>>(lambdaBody, lambdaParam);
+        }
+
         #region Get
         public virtual TEntity GetById(TPrimaryKey id)
         {
             if (id == null) throw new ArgumentNullException("id");
 
             return Entities.Find(id);
+        }
+        public virtual TEntity GetByIdNoTracking(TPrimaryKey id)
+        {
+            if (id == null) throw new ArgumentNullException("id");
+
+            return QueryNoTracking.FirstOrDefault(CreateEqualityExpressionForId(id));
         }
         public virtual List<TEntity> GetAllList()
         {
@@ -44,8 +62,12 @@ namespace Wei.Repository
         public virtual ValueTask<TEntity> GetByIdAsync(TPrimaryKey id)
         {
             if (id == null) throw new ArgumentNullException("id");
-
             return Entities.FindAsync(id);
+        }
+        public virtual async ValueTask<TEntity> GetByIdNoTrackingAsync(TPrimaryKey id)
+        {
+            if (id == null) throw new ArgumentNullException("id");
+            return await QueryNoTracking.FirstOrDefaultAsync(CreateEqualityExpressionForId(id));
         }
         public virtual Task<List<TEntity>> GetAllListAsync()
         {

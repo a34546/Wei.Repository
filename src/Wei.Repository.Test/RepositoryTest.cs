@@ -98,9 +98,8 @@ namespace Wei.Repository.Test
 
             _testTable2Repository.Delete(entity);
             _unitOfWork.SaveChanges();
-            using var scope = _serviceProvider.CreateScope();
-            var testTable2Repository = scope.ServiceProvider.GetRequiredService<ITestTable2Repository>();
-            var newEntity = testTable2Repository.GetById(entity.Id);
+
+            var newEntity = _testTable2Repository.GetByIdNoTracking(entity.Id);
             Assert.True(newEntity.IsDelete);
         }
 
@@ -212,9 +211,7 @@ namespace Wei.Repository.Test
             _testTable1Repository.Update(entity, x => x.TestResult);//只更新TestResult字段,TestMethodName不会更新
             _unitOfWork.SaveChanges();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            entity = testTable1Repository.Query.FirstOrDefault(x => x.Id == entity.Id);
+            entity = _testTable1Repository.GetByIdNoTracking(entity.Id);
 
             Assert.Contains("UpdateProp", entity.TestResult);
             Assert.NotEqual("UpdateProp", entity.TestMethodName);
@@ -253,10 +250,7 @@ namespace Wei.Repository.Test
             await _testTable1Repository.UpdateAsync(entity, x => x.TestResult);//只更新TestResult字段,TestMethodName不会更新
             await _unitOfWork.SaveChangesAsync();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            entity = testTable1Repository.Query.FirstOrDefault(x => x.Id == entity.Id);
-
+            entity = _testTable1Repository.GetByIdNoTracking(entity.Id);
             Assert.Contains("UpdatePropAsync", entity.TestResult);
             Assert.NotEqual("UpdatePropAsync", entity.TestMethodName);
         }
@@ -494,5 +488,14 @@ namespace Wei.Repository.Test
         }
         #endregion
 
+        [Fact, Order(7)]
+        public void GetByIdNoTracking()
+        {
+            var entity =_testTable1Repository.GetByIdNoTracking(1);
+            entity.TestMethodName = "GetByIdNoTracking";
+            _unitOfWork.SaveChanges();
+            entity= _testTable1Repository.GetByIdNoTracking(1);
+            Assert.NotEqual("GetByIdNoTracking", entity.TestMethodName);
+        }
     }
 }

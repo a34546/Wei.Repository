@@ -51,7 +51,7 @@ namespace Wei.Repository
             var partedSql = PagingUtil.SplitSql(sql);
             ISqlAdapter sqlAdapter = null;
             if (_dbContext.Database.IsMySql()) sqlAdapter = new MysqlAdapter();
-            //if (_context.Database.IsSqlServer()) sqlAdapter = new SqlServerAdapter();
+            if (_dbContext.Database.IsSqlServer()) sqlAdapter = new SqlServerAdapter();
             if (sqlAdapter == null) throw new Exception("Unsupported database type");
             sql = sqlAdapter.PagingBuild(ref partedSql, sqlArgs, (pageIndex - 1) * pageSize, pageSize);
             var sqlCount = PagingUtil.GetCountSql(partedSql);

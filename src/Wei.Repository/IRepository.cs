@@ -25,6 +25,13 @@ namespace Wei.Repository
         TEntity GetById(TPrimaryKey id);
 
         /// <summary>
+        /// 根据Id获取,不跟踪实体变化
+        /// </summary>
+        /// <param name="id">主键</param>
+        /// <returns>Entity</returns>
+        TEntity GetByIdNoTracking(TPrimaryKey id);
+
+        /// <summary>
         /// 获取全部(不包括逻辑删除的)
         /// </summary>
         List<TEntity> GetAllList();
@@ -40,6 +47,13 @@ namespace Wei.Repository
         /// <param name="id">主键</param>
         /// <returns>Entity</returns>
         ValueTask<TEntity> GetByIdAsync(TPrimaryKey id);
+
+        /// <summary>
+        /// 根据Id获取,不跟踪实体变化
+        /// </summary>
+        /// <param name="id">主键</param>
+        /// <returns>Entity</returns>
+        ValueTask<TEntity> GetByIdNoTrackingAsync(TPrimaryKey id);
 
         /// <summary>
         /// 获取全部(不包括逻辑删除的)
