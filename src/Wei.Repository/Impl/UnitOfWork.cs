@@ -11,14 +11,14 @@ using Wei.Repository.Impl.DapperAdapter;
 
 namespace Wei.Repository
 {
-    public class UnitOfWork<TDbContext> : IUnitOfWork where TDbContext : DbContext
+    public class UnitOfWork : IUnitOfWork
     {
-        private readonly TDbContext _dbContext;
+        private readonly DbContext _dbContext;
         private bool _disposed = false;
 
-        public UnitOfWork(TDbContext context)
+        public UnitOfWork(DbContext context)
         {
-            _dbContext = context;
+            _dbContext = context ?? throw new ArgumentNullException(nameof(context));
         }
 
         public int SaveChanges()

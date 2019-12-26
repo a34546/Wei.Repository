@@ -87,7 +87,7 @@ namespace Wei.Repository.Test
                 TestMethodName = nameof(TestTable2),
                 TestResult = $"{nameof(TestTable2)} success",
             };
-            _testTable2Repository.Insert(entity);
+            entity = _testTable2Repository.Insert(entity);
             _unitOfWork.SaveChanges();
             Assert.True(entity.Id > 0);
 
@@ -99,8 +99,11 @@ namespace Wei.Repository.Test
             _testTable2Repository.Delete(entity);
             _unitOfWork.SaveChanges();
 
-            var newEntity = _testTable2Repository.GetByIdNoTracking(entity.Id);
+            var newEntity = _testTable2Repository.Get(entity.Id);
             Assert.True(newEntity.IsDelete);
+
+            var all = _testTable2Repository.GetAll();
+            Assert.Null(all);
         }
 
         #region Insert
@@ -182,77 +185,23 @@ namespace Wei.Repository.Test
         [Fact, Order(5)]
         public void Update()
         {
-            var entity = _testTable1Repository.QueryNoTracking.FirstOrDefault(x => "Insert".Equals(x.TestMethodName));
+            var entity = _testTable1Repository.QueryNoTracking().FirstOrDefault(x => "Insert".Equals(x.TestMethodName));
             entity.TestResult += " Update success";
             _testTable1Repository.Update(entity);
             _unitOfWork.SaveChanges();
+            entity = _testTable1Repository.Get(entity.Id);
             Assert.NotNull(entity.UpdateTime);
-        }
-
-        [Fact, Order(5)]
-        public void UpdateRange()
-        {
-            var entities = _testTable1Repository.QueryNoTracking.Where(x => x.TestMethodName.StartsWith("InsertRange_")).ToList();
-            entities[0].TestResult += " UpdateRange success";
-            entities[1].TestResult += " UpdateRange success";
-            _testTable1Repository.Update(entities);
-            _unitOfWork.SaveChanges();
-
-            Assert.NotNull(entities[0].UpdateTime);
-            Assert.NotNull(entities[1].UpdateTime);
-        }
-
-        [Fact, Order(5)]
-        public void UpdateProp()
-        {
-            var entity = _testTable1Repository.QueryNoTracking.FirstOrDefault(x => "Insert".Equals(x.TestMethodName));
-            entity.TestResult += " UpdateProp success";
-            entity.TestMethodName = "UpdateProp";
-            _testTable1Repository.Update(entity, x => x.TestResult);//只更新TestResult字段,TestMethodName不会更新
-            _unitOfWork.SaveChanges();
-
-            entity = _testTable1Repository.GetByIdNoTracking(entity.Id);
-
-            Assert.Contains("UpdateProp", entity.TestResult);
-            Assert.NotEqual("UpdateProp", entity.TestMethodName);
         }
 
         [Fact, Order(5)]
         public async Task UpdateAsync()
         {
-            var entity = _testTable1Repository.QueryNoTracking.FirstOrDefault(x => "InsertAsync".Equals(x.TestMethodName));
+            var entity = _testTable1Repository.QueryNoTracking().FirstOrDefault(x => "InsertAsync".Equals(x.TestMethodName));
             entity.TestResult += " UpdateAsync success";
             await _testTable1Repository.UpdateAsync(entity);
             await _unitOfWork.SaveChangesAsync();
+            entity = await _testTable1Repository.GetAsync(entity.Id);
             Assert.NotNull(entity.UpdateTime);
-        }
-
-        [Fact, Order(5)]
-        public async Task UpdateRangeAsync()
-        {
-            var entities = _testTable1Repository.QueryNoTracking.Where(x => x.TestMethodName.StartsWith("InsertRangeAsync_")).ToList();
-            entities[0].TestResult += " UpdateRangeAsync success";
-            entities[1].TestResult += " UpdateRangeAsync success";
-            await _testTable1Repository.UpdateAsync(entities);
-            await _unitOfWork.SaveChangesAsync();
-
-            Assert.NotNull(entities[0].UpdateTime);
-            Assert.NotNull(entities[1].UpdateTime);
-
-        }
-
-        [Fact, Order(5)]
-        public async Task UpdatePropAsync()
-        {
-            var entity = _testTable1Repository.QueryNoTracking.FirstOrDefault(x => "InsertAsync".Equals(x.TestMethodName));
-            entity.TestResult += " UpdatePropAsync success";
-            entity.TestMethodName = "UpdatePropAsync";
-            await _testTable1Repository.UpdateAsync(entity, x => x.TestResult);//只更新TestResult字段,TestMethodName不会更新
-            await _unitOfWork.SaveChangesAsync();
-
-            entity = _testTable1Repository.GetByIdNoTracking(entity.Id);
-            Assert.Contains("UpdatePropAsync", entity.TestResult);
-            Assert.NotEqual("UpdatePropAsync", entity.TestMethodName);
         }
         #endregion
 
@@ -270,10 +219,9 @@ namespace Wei.Repository.Test
             _testTable1Repository.Delete(entity);
             _unitOfWork.SaveChanges();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = _testTable1Repository.Get(entity.Id);
             Assert.True(newEntity.IsDelete);
+            Assert.NotNull(newEntity.DeleteTime);
         }
 
         [Fact, Order(6)]
@@ -289,10 +237,9 @@ namespace Wei.Repository.Test
             _testTable1Repository.Delete(entity.Id);
             _unitOfWork.SaveChanges();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = _testTable1Repository.Get(entity.Id);
             Assert.True(newEntity.IsDelete);
+            Assert.NotNull(newEntity.DeleteTime);
         }
 
         [Fact, Order(6)]
@@ -308,10 +255,9 @@ namespace Wei.Repository.Test
             _testTable1Repository.Delete(x => x.Id == entity.Id);
             _unitOfWork.SaveChanges();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = _testTable1Repository.Get(entity.Id);
             Assert.True(newEntity.IsDelete);
+            Assert.NotNull(newEntity.DeleteTime);
         }
 
         [Fact, Order(6)]
@@ -327,10 +273,9 @@ namespace Wei.Repository.Test
             await _testTable1Repository.DeleteAsync(entity);
             await _unitOfWork.SaveChangesAsync();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
             Assert.True(newEntity.IsDelete);
+            Assert.NotNull(newEntity.DeleteTime);
         }
 
         [Fact, Order(6)]
@@ -346,10 +291,9 @@ namespace Wei.Repository.Test
             await _testTable1Repository.DeleteAsync(entity.Id);
             await _unitOfWork.SaveChangesAsync();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
             Assert.True(newEntity.IsDelete);
+            Assert.NotNull(newEntity.DeleteTime);
         }
 
         [Fact, Order(6)]
@@ -365,10 +309,9 @@ namespace Wei.Repository.Test
             await _testTable1Repository.DeleteAsync(x => x.Id == entity.Id);
             await _unitOfWork.SaveChangesAsync();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
             Assert.True(newEntity.IsDelete);
+            Assert.NotNull(newEntity.DeleteTime);
         }
         #endregion
 
@@ -386,9 +329,7 @@ namespace Wei.Repository.Test
             _testTable1Repository.HardDelete(entity);
             _unitOfWork.SaveChanges();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = _testTable1Repository.Get(entity.Id);
             Assert.Null(newEntity);
         }
 
@@ -405,9 +346,7 @@ namespace Wei.Repository.Test
             _testTable1Repository.HardDelete(entity.Id);
             _unitOfWork.SaveChanges();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = _testTable1Repository.Get(entity.Id);
             Assert.Null(newEntity);
         }
 
@@ -424,9 +363,7 @@ namespace Wei.Repository.Test
             _testTable1Repository.HardDelete(x => x.Id == entity.Id);
             _unitOfWork.SaveChanges();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = _testTable1Repository.Get(entity.Id);
             Assert.Null(newEntity);
         }
 
@@ -443,9 +380,7 @@ namespace Wei.Repository.Test
             await _testTable1Repository.HardDeleteAsync(entity);
             await _unitOfWork.SaveChangesAsync();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
             Assert.Null(newEntity);
         }
 
@@ -462,9 +397,7 @@ namespace Wei.Repository.Test
             await _testTable1Repository.HardDeleteAsync(entity.Id);
             await _unitOfWork.SaveChangesAsync();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
             Assert.Null(newEntity);
         }
 
@@ -481,21 +414,9 @@ namespace Wei.Repository.Test
             await _testTable1Repository.HardDeleteAsync(x => x.Id == entity.Id);
             await _unitOfWork.SaveChangesAsync();
 
-            using var scope = _serviceProvider.CreateScope();
-            var testTable1Repository = scope.ServiceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            var newEntity = testTable1Repository.GetById(entity.Id);
+            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
             Assert.Null(newEntity);
         }
         #endregion
-
-        [Fact, Order(7)]
-        public void GetByIdNoTracking()
-        {
-            var entity =_testTable1Repository.GetByIdNoTracking(1);
-            entity.TestMethodName = "GetByIdNoTracking";
-            _unitOfWork.SaveChanges();
-            entity= _testTable1Repository.GetByIdNoTracking(1);
-            Assert.NotEqual("GetByIdNoTracking", entity.TestMethodName);
-        }
     }
 }

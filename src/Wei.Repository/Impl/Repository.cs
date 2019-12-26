@@ -8,164 +8,68 @@ using System.Threading.Tasks;
 
 namespace Wei.Repository
 {
-    public class Repository<TEntity> : Repository<TEntity, int>, IRepository<TEntity>
-        where TEntity : class, IEntity
+    public class Repository<TEntity>
+         : Repository<TEntity, int>, IRepository<TEntity>
+         where TEntity : class, IEntity
     {
-        public Repository(UnitOfWorkDbContext dbDbContext) : base(dbDbContext)
+        public Repository(DbContext dbDbContext) : base(dbDbContext)
         {
         }
     }
 
-    public class Repository<TEntity, TPrimaryKey> : IRepository<TEntity, TPrimaryKey>
-       where TEntity : class, IEntity<TPrimaryKey>
+    public class Repository<TEntity, TPrimaryKey>
+        : RepositoryBase<TEntity, TPrimaryKey>
+        where TEntity : class, IEntity<TPrimaryKey>
     {
-        private readonly DbContext _context;
-        private DbSet<TEntity> _entities;
-        public Repository(UnitOfWorkDbContext context)
+        private readonly DbContext _dbContext;
+        public virtual DbSet<TEntity> Table => _dbContext.Set<TEntity>();
+        public Repository(DbContext context)
         {
-            _context = context;
+            _dbContext = context;
         }
 
-        protected static Expression<Func<TEntity, bool>> CreateEqualityExpressionForId(TPrimaryKey id)
+        public override IQueryable<TEntity> Query()
         {
-            var lambdaParam = Expression.Parameter(typeof(TEntity));
-
-            var lambdaBody = Expression.Equal(
-                Expression.PropertyOrField(lambdaParam, "Id"),
-                Expression.Constant(id, typeof(TPrimaryKey))
-            );
-
-            return Expression.Lambda<Func<TEntity, bool>>(lambdaBody, lambdaParam);
+            return Table.AsQueryable();
         }
 
-        #region Get
-        public virtual TEntity GetById(TPrimaryKey id)
+        public override IQueryable<TEntity> QueryNoTracking()
         {
-            if (id == null) throw new ArgumentNullException("id");
+            return Table.AsQueryable().AsNoTracking();
+        }
 
-            return Entities.Find(id);
-        }
-        public virtual TEntity GetByIdNoTracking(TPrimaryKey id)
+        public override TEntity Insert(TEntity entity)
         {
-            if (id == null) throw new ArgumentNullException("id");
+            var newEntity = Table.Add(entity).Entity;
+            return newEntity;
+        }
 
-            return QueryNoTracking.FirstOrDefault(CreateEqualityExpressionForId(id));
-        }
-        public virtual List<TEntity> GetAllList()
+        public override async Task<TEntity> InsertAsync(TEntity entity)
         {
-            return Query.Where(x => x.IsDelete == false).ToList();
+            var entityEntry = await Table.AddAsync(entity);
+            return entityEntry.Entity;
         }
-        public virtual List<TEntity> GetAllList(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query.Where(x => x.IsDelete == false).Where(predicate).ToList();
-        }
-        public virtual ValueTask<TEntity> GetByIdAsync(TPrimaryKey id)
-        {
-            if (id == null) throw new ArgumentNullException("id");
-            return Entities.FindAsync(id);
-        }
-        public virtual async ValueTask<TEntity> GetByIdNoTrackingAsync(TPrimaryKey id)
-        {
-            if (id == null) throw new ArgumentNullException("id");
-            return await QueryNoTracking.FirstOrDefaultAsync(CreateEqualityExpressionForId(id));
-        }
-        public virtual Task<List<TEntity>> GetAllListAsync()
-        {
-            return Query.Where(x => x.IsDelete == false).ToListAsync();
-        }
-        public virtual Task<List<TEntity>> GetAllListAsync(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query.Where(x => x.IsDelete == false).Where(predicate).ToListAsync();
-        }
-        #endregion
 
-        #region Insert
-        public virtual void Insert(TEntity entity)
+        public override void Insert(List<TEntity> entities)
         {
-            if (entity == null) throw new ArgumentNullException("entity");
-            Entities.Add(entity);
+            Table.AddRange(entities);
         }
-        public virtual void Insert(IEnumerable<TEntity> entities)
+
+        public override Task InsertAsync(List<TEntity> entities)
         {
-            if (!entities.Any()) throw new ArgumentNullException("entities");
-            Entities.AddRange(entities);
-        }
-        public virtual Task InsertAsync(TEntity entity)
-        {
-            if (entity == null) throw new ArgumentNullException("entity");
-            Entities.AddAsync(entity);
+            Table.AddRangeAsync(entities);
             return Task.CompletedTask;
         }
-        public virtual Task InsertAsync(IEnumerable<TEntity> entities)
-        {
-            if (!entities.Any()) throw new ArgumentNullException("entities");
-            return Entities.AddRangeAsync(entities);
-        }
-        #endregion
 
-        #region Update
-        public virtual void Update(TEntity entity)
+        public override TEntity Update(TEntity entity)
         {
-            if (entity == null) throw new ArgumentNullException("entity");
-            Entities.Attach(entity);
-            _context.Update(entity);
+            AttachIfNot(entity);
+            _dbContext.Entry(entity).State = EntityState.Modified;
+            return entity;
         }
-        public virtual void Update(IEnumerable<TEntity> entities)
-        {
-            if (!entities.Any()) throw new ArgumentNullException("entities");
-            if (entities.Any(x => x == null)) throw new ArgumentNullException("Entity cannot be empty");
-            _context.UpdateRange(entities);
 
-        }
-        public virtual void Update(TEntity entity, params Expression<Func<TEntity, object>>[] properties)
+        public override void Delete(TEntity entity)
         {
-            foreach (var property in properties)
-            {
-                var propertyName = property.Name;
-                if (string.IsNullOrEmpty(propertyName))
-                {
-                    propertyName = GetPropertyName(property.Body.ToString());
-                }
-                _context.Entry(entity).Property(propertyName).IsModified = true;
-
-            }
-        }
-        public virtual Task UpdateAsync(TEntity entity)
-        {
-            Update(entity);
-            return Task.CompletedTask;
-        }
-        public virtual Task UpdateAsync(IEnumerable<TEntity> entities)
-        {
-            if (!entities.Any()) throw new ArgumentNullException("entities");
-            _context.UpdateRange(entities);
-            return Task.CompletedTask;
-        }
-        public virtual Task UpdateAsync(TEntity entity, params Expression<Func<TEntity, object>>[] properties)
-        {
-            foreach (var property in properties)
-            {
-                var propertyName = property.Name;
-                if (string.IsNullOrEmpty(propertyName))
-                {
-                    propertyName = GetPropertyName(property.Body.ToString());
-                }
-                _context.Entry(entity).Property(propertyName).IsModified = true;
-
-            }
-            return Task.CompletedTask;
-        }
-        string GetPropertyName(string str)
-        {
-            return str.Split(',')[0].Split('.')[1];
-        }
-        #endregion
-
-        #region Delete/HardDelete
-        public virtual void Delete(TPrimaryKey id)
-        {
-            if (id == null) throw new ArgumentNullException("id");
-            var entity = Entities.Find(id);
             if (entity != null)
             {
                 entity.IsDelete = true;
@@ -173,121 +77,84 @@ namespace Wei.Repository
                 Update(entity);
             }
         }
-        public virtual void Delete(TEntity entity)
+
+        public override void Delete(TPrimaryKey id)
         {
-            if (entity == null) throw new ArgumentNullException("entity");
-            entity.IsDelete = true;
-            entity.DeleteTime = DateTime.Now;
-            Update(entity);
+            var entity = Get(id);
+            Delete(entity);
         }
-        public virtual void Delete(IEnumerable<TEntity> entities)
+
+        public override void Delete(Expression<Func<TEntity, bool>> predicate)
         {
-            if (!entities.Any()) throw new ArgumentNullException("entities");
-            foreach (var entity in entities)
+            var entities = GetAll(predicate);
+            if (entities.Any())
             {
-                entity.IsDelete = true;
-                entity.DeleteTime = DateTime.Now;
-            }
-            Update(entities);
-        }
-        public virtual void Delete(Expression<Func<TEntity, bool>> predicate)
-        {
-            if (predicate == null) throw new ArgumentNullException("predicate");
-            var entities = Entities.Where(predicate).ToList();
-            if (entities != null && entities.Any())
-            {
-                Delete(entities);
+                entities.ForEach(entity =>
+                {
+                    Delete(entity);
+                });
             }
         }
-        public virtual Task DeleteAsync(TPrimaryKey id)
+
+        public override void HardDelete(TEntity entity)
         {
-            if (id == null) throw new ArgumentNullException("id");
-            var entity = Entities.Find(id);
-            if (entity == null) throw new ArgumentNullException("entity");
-            entity.IsDelete = true;
-            entity.DeleteTime = DateTime.Now;
-            return UpdateAsync(entity);
+            AttachIfNot(entity);
+            Table.Remove(entity);
         }
-        public virtual Task DeleteAsync(TEntity entity)
+
+        public override void HardDelete(TPrimaryKey id)
         {
-            if (entity == null) throw new ArgumentNullException("entity");
-            entity.IsDelete = true;
-            entity.DeleteTime = DateTime.Now;
-            return UpdateAsync(entity);
-        }
-        public virtual Task DeleteAsync(IEnumerable<TEntity> entities)
-        {
-            if (!entities.Any()) throw new ArgumentNullException("entities");
-            foreach (var entity in entities)
+            var entity = GetFromChangeTrackerOrNull(id);
+            if (entity != null)
             {
-                entity.IsDelete = true;
-                entity.DeleteTime = DateTime.Now;
+                HardDelete(entity);
+                return;
             }
-            return UpdateAsync(entities);
-        }
-        public virtual Task DeleteAsync(Expression<Func<TEntity, bool>> predicate)
-        {
-            if (predicate == null) throw new ArgumentNullException("predicate");
 
-            var entities = Entities.Where(predicate).ToList();
-            if (entities != null && entities.Any()) return DeleteAsync(entities);
-            return Task.CompletedTask;
+            entity = Get(id);
+            if (entity != null)
+            {
+                HardDelete(entity);
+                return;
+            }
         }
-        public virtual void HardDelete(TPrimaryKey id)
-        {
-            if (id == null) throw new ArgumentNullException("id");
-            var entity = Entities.Find(id);
-            if (entity != null) _context.Remove(entity);
-        }
-        public virtual void HardDelete(TEntity entity)
-        {
-            if (entity == null) throw new ArgumentNullException("entity");
-            _context.Remove(entity);
-        }
-        public virtual void HardDelete(IEnumerable<TEntity> entities)
-        {
-            if (!entities.Any()) throw new ArgumentNullException("entities");
-            _context.RemoveRange(entities);
-        }
-        public virtual void HardDelete(Expression<Func<TEntity, bool>> predicate)
-        {
-            if (predicate == null) throw new ArgumentNullException("predicate");
-            _context.RemoveRange(Entities.Where(predicate));
-        }
-        public virtual Task HardDeleteAsync(TPrimaryKey id)
-        {
-            if (id == null) throw new ArgumentNullException("id");
-            var entity = Entities.Find(id);
-            if (entity != null) _context.Remove(entity);
-            return Task.CompletedTask;
-        }
-        public virtual Task HardDeleteAsync(TEntity entity)
-        {
-            if (entity == null) throw new ArgumentNullException("entity");
-            _context.Remove(entity);
-            return Task.CompletedTask;
-        }
-        public virtual Task HardDeleteAsync(IEnumerable<TEntity> entities)
-        {
-            if (!entities.Any()) throw new ArgumentNullException("entities");
-            _context.RemoveRange(entities);
-            return Task.CompletedTask;
-        }
-        public virtual Task HardDeleteAsync(Expression<Func<TEntity, bool>> predicate)
-        {
-            if (predicate == null) throw new ArgumentNullException("predicate");
-            _context.RemoveRange(Entities.Where(predicate));
-            return Task.CompletedTask;
-        }
-        #endregion
 
-        #region Properties
-        public virtual IQueryable<TEntity> Query => Entities;
+        public override void HardDelete(Expression<Func<TEntity, bool>> predicate)
+        {
+            var entities = Table.Where(predicate).ToList();
+            if (entities.Any())
+            {
+                entities.ForEach(entity =>
+                {
+                    AttachIfNot(entity);
+                });
+                Table.RemoveRange(entities);
+            }
+        }
 
-        public virtual IQueryable<TEntity> QueryNoTracking => Entities.AsNoTracking();
+        protected virtual void AttachIfNot(TEntity entity)
+        {
+            var entry = _dbContext.ChangeTracker.Entries().FirstOrDefault(ent => ent.Entity == entity);
+            if (entry != null)
+            {
+                return;
+            }
 
-        protected virtual DbSet<TEntity> Entities => _entities ?? (_entities = _context.Set<TEntity>());
+            Table.Attach(entity);
+        }
 
-        #endregion
+        private TEntity GetFromChangeTrackerOrNull(TPrimaryKey id)
+        {
+            var entry = _dbContext.ChangeTracker.Entries()
+                .FirstOrDefault(
+                    ent =>
+                        ent.Entity is TEntity &&
+                        EqualityComparer<TPrimaryKey>.Default.Equals(id, ((TEntity)ent.Entity).Id)
+                );
+
+            return entry?.Entity as TEntity;
+        }
+
+
     }
 }

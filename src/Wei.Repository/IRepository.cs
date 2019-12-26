@@ -8,214 +8,117 @@ using System.Threading.Tasks;
 namespace Wei.Repository
 {
     public interface IRepository<TEntity> : IRepository<TEntity, int>
-       where TEntity : class, IEntity
+        where TEntity : class, IEntity
     {
-
     }
 
-    public interface IRepository<TEntity, TPrimaryKey> where TEntity : class, IEntity<TPrimaryKey>
+    public interface IRepository<TEntity, TPrimaryKey>
+        where TEntity : class, IEntity<TPrimaryKey>
     {
+        #region Query
 
-        #region Get/Query
-        /// <summary>
-        /// 根据Id获取
-        /// </summary>
-        /// <param name="id">主键</param>
-        /// <returns>Entity</returns>
-        TEntity GetById(TPrimaryKey id);
+        IQueryable<TEntity> Query();
 
-        /// <summary>
-        /// 根据Id获取,不跟踪实体变化
-        /// </summary>
-        /// <param name="id">主键</param>
-        /// <returns>Entity</returns>
-        TEntity GetByIdNoTracking(TPrimaryKey id);
+        IQueryable<TEntity> QueryNoTracking();
 
-        /// <summary>
-        /// 获取全部(不包括逻辑删除的)
-        /// </summary>
-        List<TEntity> GetAllList();
+        IQueryable<TEntity> Query(Expression<Func<TEntity, bool>> predicate);
 
-        /// <summary>
-        /// 获取全部(不包括逻辑删除的)
-        /// </summary>
-        List<TEntity> GetAllList(Expression<Func<TEntity, bool>> predicate);
+        TEntity Get(TPrimaryKey id);
 
-        /// <summary>
-        /// 根据Id获取
-        /// </summary>
-        /// <param name="id">主键</param>
-        /// <returns>Entity</returns>
-        ValueTask<TEntity> GetByIdAsync(TPrimaryKey id);
+        Task<TEntity> GetAsync(TPrimaryKey id);
 
-        /// <summary>
-        /// 根据Id获取,不跟踪实体变化
-        /// </summary>
-        /// <param name="id">主键</param>
-        /// <returns>Entity</returns>
-        ValueTask<TEntity> GetByIdNoTrackingAsync(TPrimaryKey id);
+        List<TEntity> GetAll();
 
-        /// <summary>
-        /// 获取全部(不包括逻辑删除的)
-        /// </summary>
-        Task<List<TEntity>> GetAllListAsync();
+        Task<List<TEntity>> GetAllAsync();
 
-        /// <summary>
-        /// 获取全部(不包括逻辑删除的)
-        /// </summary>
-        Task<List<TEntity>> GetAllListAsync(Expression<Func<TEntity, bool>> predicate);
+        List<TEntity> GetAll(Expression<Func<TEntity, bool>> predicate);
 
-        /// <summary>
-        /// 查询
-        /// </summary>
-        IQueryable<TEntity> Query { get; }
+        Task<List<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>> predicate);
 
-        /// <summary>
-        /// 查询(不跟踪实体)
-        /// </summary>
-        IQueryable<TEntity> QueryNoTracking { get; }
+        TEntity FirstOrDefault();
+
+        Task<TEntity> FirstOrDefaultAsync();
+
+        TEntity FirstOrDefault(Expression<Func<TEntity, bool>> predicate);
+
+        Task<TEntity> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate);
 
         #endregion
 
         #region Insert
-        /// <summary>
-        /// 新增
-        /// </summary>
-        void Insert(TEntity entity);
 
-        /// <summary>
-        /// 批量新增
-        /// </summary>
-        void Insert(IEnumerable<TEntity> entities);
+        TEntity Insert(TEntity entity);
 
-        /// <summary>
-        /// 新增
-        /// </summary>
-        Task InsertAsync(TEntity entity);
+        Task<TEntity> InsertAsync(TEntity entity);
 
-        /// <summary>
-        /// 批量新增
-        /// </summary>
-        Task InsertAsync(IEnumerable<TEntity> entities);
+        void Insert(List<TEntity> entities);
 
-        #endregion
+        Task InsertAsync(List<TEntity> entities);
+
+        #endregion Insert
 
         #region Update
-        /// <summary>
-        /// 更新
-        /// </summary>
-        /// <param name="entity">Entity</param>
-        void Update(TEntity entity);
 
-        /// <summary>
-        /// 批量更新
-        /// </summary>
-        /// <param name="entities"></param>
-        void Update(IEnumerable<TEntity> entities);
+        TEntity Update(TEntity entity);
 
-        /// <summary>
-        /// 更新
-        /// </summary>
-        void Update(TEntity entity, params Expression<Func<TEntity, object>>[] properties);
+        Task<TEntity> UpdateAsync(TEntity entity);
 
-        /// <summary>
-        /// 更新
-        /// </summary>
-        Task UpdateAsync(TEntity entity);
+        #endregion Update
 
-        /// <summary>
-        /// 批量更新
-        /// </summary>
-        Task UpdateAsync(IEnumerable<TEntity> entities);
+        #region Delete
 
-        /// <summary>
-        /// 更新
-        /// </summary>
-        Task UpdateAsync(TEntity entity, params Expression<Func<TEntity, object>>[] properties);
-        #endregion
-
-        #region Delete/HardDelete
-
-        /// <summary>
-        /// 删除
-        /// </summary>
-        void Delete(TPrimaryKey id);
-
-        /// <summary>
-        /// 删除
-        /// </summary>
         void Delete(TEntity entity);
 
-        /// <summary>
-        /// 删除
-        /// </summary>
-        void Delete(IEnumerable<TEntity> entities);
-
-        /// <summary>
-        /// 删除
-        /// </summary>
-        void Delete(Expression<Func<TEntity, bool>> predicate);
-
-        /// <summary>
-        /// 删除
-        /// </summary>
-        Task DeleteAsync(TPrimaryKey id);
-
-        /// <summary>
-        /// 删除
-        /// </summary>
         Task DeleteAsync(TEntity entity);
 
-        /// <summary>
-        /// 删除
-        /// </summary>
-        Task DeleteAsync(IEnumerable<TEntity> entities);
+        void Delete(TPrimaryKey id);
 
-        /// <summary>
-        /// 删除
-        /// </summary>
+        Task DeleteAsync(TPrimaryKey id);
+
+        void Delete(Expression<Func<TEntity, bool>> predicate);
+
         Task DeleteAsync(Expression<Func<TEntity, bool>> predicate);
 
-        /// <summary>
-        /// 删除
-        /// </summary>
-        void HardDelete(TPrimaryKey id);
-
-        /// <summary>
-        /// 删除
-        /// </summary>
-        void HardDelete(TEntity entity);
-
-        /// <summary>
-        /// 删除
-        /// </summary>
-        void HardDelete(IEnumerable<TEntity> entities);
-
-        /// <summary>
-        /// 删除
-        /// </summary>
-        void HardDelete(Expression<Func<TEntity, bool>> predicate);
-
-        /// <summary>
-        /// 删除
-        /// </summary>
-        Task HardDeleteAsync(TPrimaryKey id);
-
-        /// <summary>
-        /// 删除
-        /// </summary>
-        Task HardDeleteAsync(TEntity entity);
-
-        /// <summary>
-        /// 删除
-        /// </summary>
-        Task HardDeleteAsync(IEnumerable<TEntity> entities);
-
-        /// <summary>
-        /// 删除
-        /// </summary>
-        Task HardDeleteAsync(Expression<Func<TEntity, bool>> predicate);
         #endregion
 
+        #region HardDelete
+
+        void HardDelete(TEntity entity);
+
+        Task HardDeleteAsync(TEntity entity);
+
+        void HardDelete(TPrimaryKey id);
+
+        Task HardDeleteAsync(TPrimaryKey id);
+
+        void HardDelete(Expression<Func<TEntity, bool>> predicate);
+
+        Task HardDeleteAsync(Expression<Func<TEntity, bool>> predicate);
+
+        #endregion
+
+        #region Aggregate
+
+        bool Any(Expression<Func<TEntity, bool>> predicate);
+
+        Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate);
+
+        int Count();
+
+        Task<int> CountAsync();
+
+        int Count(Expression<Func<TEntity, bool>> predicate);
+
+        Task<int> CountAsync(Expression<Func<TEntity, bool>> predicate);
+
+        long LongCount();
+
+        Task<long> LongCountAsync();
+
+        long LongCount(Expression<Func<TEntity, bool>> predicate);
+
+        Task<long> LongCountAsync(Expression<Func<TEntity, bool>> predicate);
+
+        #endregion
     }
 }

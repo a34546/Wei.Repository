@@ -13,32 +13,31 @@ namespace Wei.Repository
         public static IServiceCollection AddRepository(this IServiceCollection services,
             Action<DbContextOptionsBuilder> options)
         {
-            services.AddDbContext<UnitOfWorkDbContext>(options);
-            services.AddScoped<DbContext, UnitOfWorkDbContext>();
-            services.AddScoped<IUnitOfWork, UnitOfWork<UnitOfWorkDbContext>>();
+            services.AddDbContext<BaseDbContext>(options);
+            services.AddScoped<DbContext, BaseDbContext>();
             services.AddRepository();
             return services;
         }
         public static IServiceCollection AddRepository<TDbContext>(this IServiceCollection services,
-            Action<DbContextOptionsBuilder> options) where TDbContext : UnitOfWorkDbContext
+            Action<DbContextOptionsBuilder> options) where TDbContext : BaseDbContext
         {
             services.AddDbContext<TDbContext>(options);
             services.AddScoped<DbContext, TDbContext>();
-            services.AddScoped<IUnitOfWork, UnitOfWork<TDbContext>>();
             services.AddRepository();
             return services;
         }
 
         private static IServiceCollection AddRepository(this IServiceCollection services)
         {
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
             var assemblies = AppDomain.CurrentDomain.GetCurrentPathAssembly().Where(x => !(x.GetName().Name.Equals("Wei.Repository")));
-            AddRepository(services, assemblies, typeof(IRepository<>));
-            AddRepository(services, assemblies, typeof(IRepository<,>));
+            services.AddRepository(assemblies, typeof(IRepository<>));
+            services.AddRepository(assemblies, typeof(IRepository<,>));
             services.AddTransient(typeof(IRepository<>), typeof(Repository<>));
             services.AddTransient(typeof(IRepository<,>), typeof(Repository<,>));
             return services;
         }
-        private static IServiceCollection AddRepository(IServiceCollection services, IEnumerable<Assembly> assemblies, Type baseType)
+        private static void AddRepository(this IServiceCollection services, IEnumerable<Assembly> assemblies, Type baseType)
         {
             foreach (var assembly in assemblies)
             {
@@ -56,7 +55,6 @@ namespace Wei.Repository
                     if (!services.Contains(serviceDescriptor)) services.Add(serviceDescriptor);
                 }
             }
-            return services;
         }
     }
 }

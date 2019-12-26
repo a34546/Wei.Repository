@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
+using Xunit.Extensions.Ordering;
 
 namespace Wei.Repository.Test
 {
@@ -64,10 +65,10 @@ namespace Wei.Repository.Test
             }
         }
 
-        [Fact]
+        [Fact, Order(1)]
         public async Task QueryPagedAsync()
         {
-            if (await _testTable2Repository.QueryNoTracking.CountAsync() <= 10)
+            if (await _testTable2Repository.CountAsync() <= 10)
             {
                 var posts = new List<TestTable2>();
                 for (int i = 0; i < 20; i++)
@@ -83,14 +84,15 @@ namespace Wei.Repository.Test
             }
             var pageResult = await _unitOfWork.QueryPagedAsync<TestTable2>(1, 10, "select * from TestTable2 where isDelete = @isDelete order by id desc", new { isDelete = 0 });
             Assert.NotNull(pageResult);
+            Assert.True(pageResult.Total >= 10);
         }
 
-        [Fact]
-        public void GetById()
+        [Fact, Order(2)]
+        public async Task FirstOrDefaultAsync()
         {
-            //注意这里不会调用TestTable2Repository重写的GetById，需要注入 ITestTable2Repository 才能调用重写的GetById方法
-            var entity = _testTable2Repository.GetById(1);
-            Assert.True(true);
+            //注意这里不会调用TestTable2Repository重写的FirstOrDefaultAsync，需要注入 ITestTable2Repository 才能调用重写的FirstOrDefaultAsync方法
+            var entity = await _testTable2Repository.FirstOrDefaultAsync();
+            Assert.True(entity.Id > 0);
         }
     }
 }

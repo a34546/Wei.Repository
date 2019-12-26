@@ -1,20 +1,15 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Wei.Repository
 {
-    public class UnitOfWorkDbContext : DbContext
+    public class BaseDbContext : DbContext
     {
-        protected UnitOfWorkDbContext()
-        {
-        }
 
-        public UnitOfWorkDbContext(DbContextOptions options) : base(options)
+        public BaseDbContext(DbContextOptions options) : base(options)
         {
         }
 
