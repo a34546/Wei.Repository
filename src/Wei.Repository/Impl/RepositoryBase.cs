@@ -21,24 +21,29 @@ namespace Wei.Repository
             return Query().Where(predicate);
         }
 
+        public virtual IQueryable<TEntity> QueryNoTracking(Expression<Func<TEntity, bool>> predicate)
+        {
+            return QueryNoTracking().Where(predicate);
+        }
+
         public virtual List<TEntity> GetAll()
         {
-            return Query().ToList();
+            return Query(x => x.IsDelete == false).ToList();
         }
 
         public virtual Task<List<TEntity>> GetAllAsync()
         {
-            return Query().ToListAsync();
+            return Query(x => x.IsDelete == false).ToListAsync();
         }
 
         public virtual List<TEntity> GetAll(Expression<Func<TEntity, bool>> predicate)
         {
-            return Query().Where(predicate).ToList();
+            return Query().Where(x => x.IsDelete == false).Where(predicate).ToList();
         }
 
         public virtual Task<List<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>> predicate)
         {
-            return Query().Where(predicate).ToListAsync();
+            return Query().Where(x => x.IsDelete == false).Where(predicate).ToListAsync();
         }
 
         public virtual TEntity Get(TPrimaryKey id)

@@ -14,20 +14,30 @@ namespace WebApi.Controllers
     public class UserController : ControllerBase
     {
 
-        private readonly IRepository<User> _userRepository;
-        private readonly IUserRepository _repository;
-        public UserController(IRepository<User> userRepository,
-            IUserRepository repository)
+        /// <summary>
+        /// 泛型注入
+        /// </summary>
+        private readonly IRepository<User> _repository;
+
+        /// <summary>
+        /// 自定义UserRepository
+        /// </summary>
+        private readonly IUserRepository _userRepository;
+        public UserController(IRepository<User> repository,
+            IUserRepository userRepository)
         {
-            _userRepository = userRepository;
             _repository = repository;
+            _userRepository = userRepository;
         }
 
         [HttpGet]
         public async Task<User> Get()
         {
-            return await _userRepository.FirstOrDefaultAsync();
-            //return await _repository.FirstOrDefaultAsync();
+            //泛型注入不会调用重写的方法
+            return await _repository.FirstOrDefaultAsync();
+
+            //会调用重写的FirstOrDefaultAsync()
+            //return await _userRepository.FirstOrDefaultAsync();
         }
     }
 }

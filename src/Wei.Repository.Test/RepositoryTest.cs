@@ -266,8 +266,8 @@ namespace Wei.Repository.Test
             _repository.Delete(x => x.UserName.StartsWith("repository_InsertRange_"));
             _unitOfWork.SaveChanges();
 
-            var user1 = _userRepository.QueryNoTracking().Where(x => x.UserName.StartsWith("userRepository_InsertRange_")).ToList();
-            var user2 = _repository.QueryNoTracking().Where(x => x.UserName.StartsWith("repository_InsertRange_")).ToList();
+            var user1 = _userRepository.QueryNoTracking(x => x.UserName.StartsWith("userRepository_InsertRange_")).ToList();
+            var user2 = _repository.QueryNoTracking(x => x.UserName.StartsWith("repository_InsertRange_")).ToList();
 
             var isAllDelete1 = !(user1.Any(x => x.IsDelete == false));
             var isAllDelete2 = !(user2.Any(x => x.IsDelete == false));
@@ -283,8 +283,8 @@ namespace Wei.Repository.Test
             await _repository.DeleteAsync(x => x.UserName.StartsWith("repository_InsertRangeAsync_"));
             await _unitOfWork.SaveChangesAsync();
 
-            var user1 = await _userRepository.QueryNoTracking().Where(x => x.UserName.StartsWith("userRepository_InsertRangeAsync_")).ToListAsync();
-            var user2 = await _repository.QueryNoTracking().Where(x => x.UserName.StartsWith("repository_InsertRangeAsync_")).ToListAsync();
+            var user1 = await _userRepository.QueryNoTracking(x => x.UserName.StartsWith("userRepository_InsertRangeAsync_")).ToListAsync();
+            var user2 = await _repository.QueryNoTracking(x => x.UserName.StartsWith("repository_InsertRangeAsync_")).ToListAsync();
 
             var isAllDelete1 = !(user1.Any(x => x.IsDelete == false));
             var isAllDelete2 = !(user2.Any(x => x.IsDelete == false));

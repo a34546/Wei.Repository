@@ -96,7 +96,7 @@ namespace Wei.Repository.Test
             Assert.True(user.UserName == users.First().UserName);
         }
 
-        [Fact]
+        [Fact, Order(2)]
         public async Task QueryAsync()
         {
             InitUsers();
@@ -104,7 +104,7 @@ namespace Wei.Repository.Test
             Assert.True(users.Any());
         }
 
-        [Fact]
+        [Fact, Order(2)]
         public async Task QueryPagedAsync()
         {
             InitUsers();
@@ -113,7 +113,7 @@ namespace Wei.Repository.Test
             Assert.True(pageResult.Total >= 10);
         }
 
-        [Fact]
+        [Fact, Order(3)]
         public async Task Transaction()
         {
             var user1 = new User { UserName = "Transaction_1" };
@@ -138,7 +138,7 @@ namespace Wei.Repository.Test
             Assert.Null(findUser2);
         }
 
-        [Fact]
+        [Fact, Order(3)]
         public async Task HybridTransaction()
         {
             var user1 = new User { UserName = "HybridTransaction_1" };
