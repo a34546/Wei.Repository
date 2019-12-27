@@ -278,4 +278,6 @@ using (var tran = _unitOfWork.BeginTransaction())
 await _unitOfWork.GetConnection().QueryAsync("select * from user");
 ```
 
-> 本项目有参考[chimp](https://github.com/longxianghui/chimp)
+
+
+> 本项目有参考chimp
