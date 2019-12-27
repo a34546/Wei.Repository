@@ -7,13 +7,13 @@ namespace Wei.Repository
     /// <summary>
     /// 分页列表
     /// </summary>
-    public class Page<T> : IPage<T>
+    public class Page<T>
     {
         public Page()
         {
 
         }
-        public Page(IList<T> items, int pageIndex, int pageSize, int totalCount)
+        public Page(List<T> items, int pageIndex, int pageSize, int totalCount)
         {
             PageIndex = pageIndex;
             PageSize = pageSize;
@@ -45,6 +45,6 @@ namespace Wei.Repository
         /// <summary>
         /// 分页数据
         /// </summary>
-        public IEnumerable<T> Items { get; set; }
+        public List<T> Items { get; set; }
     }
 }
