@@ -14,7 +14,7 @@ public string Password { get; set; }
 public string Mobile { get; set; }
 }
 ```
-2. 继承BaseDbContext,如果不需要DbContext，可以忽略该步骤
+2. 【可选】继承BaseDbContext,如果不需要DbContext，可以忽略该步骤
 ```cs
 public class DemoDbContext : DbContext
 {
