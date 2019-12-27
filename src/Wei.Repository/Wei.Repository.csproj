@@ -8,7 +8,8 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <NeutralLanguage>zh</NeutralLanguage>
     <PackageProjectUrl>https://github.com/a34546/Wei.Repository.git</PackageProjectUrl>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
+    <FileVersion>1.0.4.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,9 +1,9 @@
-﻿using Dapper;
+using Dapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Extensions.Ordering;
@@ -12,9 +12,18 @@ namespace Wei.Repository.Test
 {
     public class DapperTest
     {
+        readonly ServiceProvider _serviceProvider;
         readonly IUnitOfWork _unitOfWork;
-        readonly IRepository<TestTable2> _testTable2Repository;
 
+        /// <summary>
+        /// �Զ���AppService
+        /// </summary>
+        readonly IUserRepository _userRepository;
+
+        /// <summary>
+        /// ����AppService
+        /// </summary>
+        readonly IRepository<User> _repository;
         public DapperTest()
         {
             var services = new ServiceCollection();
@@ -22,77 +31,137 @@ namespace Wei.Repository.Test
             {
                 opt.UseMySql("server = 127.0.0.1;database=demo;uid=root;password=root;");
             });
-            var serviceProvider = services.BuildServiceProvider();
-            _unitOfWork = serviceProvider.GetRequiredService<IUnitOfWork>();
-            _testTable2Repository = serviceProvider.GetRequiredService<IRepository<TestTable2>>();
-            EnsureTestTableExists();
+            _serviceProvider = services.BuildServiceProvider();
+            _unitOfWork = _serviceProvider.GetRequiredService<IUnitOfWork>();
+
+            _userRepository = _serviceProvider.GetRequiredService<IUserRepository>();
+            _repository = _serviceProvider.GetRequiredService<IRepository<User>>();
+            InitUserTable();
         }
 
-        private void EnsureTestTableExists()
+        private void InitUserTable()
         {
-            var conn = _unitOfWork.GetConnection();
-            var testTable1 = conn.QueryFirstOrDefault<string>("SHOW TABLES LIKE 'TestTable1';");
-            if (!"testtable1".Equals(testTable1, StringComparison.CurrentCultureIgnoreCase))
+            using var scope = _serviceProvider.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            using var conn = unitOfWork.GetConnection();
+            var userTable = conn.QueryFirstOrDefault<string>("SHOW TABLES LIKE 'User';");
+            if (!"User".Equals(userTable, StringComparison.CurrentCultureIgnoreCase))
             {
                 conn.Execute(@"
-                            CREATE TABLE `testtable1` (
-                              `Id` bigint(20) NOT NULL AUTO_INCREMENT,
-                              `TestMethodName` varchar(200)  DEFAULT NULL,
-                              `TestResult` varchar(200)  DEFAULT NULL,
-                              `CreateTime` datetime(6) NOT NULL,
-                              `UpdateTime` datetime(6) DEFAULT NULL,
-                              `IsDelete` bit(1) NOT NULL,
-                              `DeleteTime` datetime(6) DEFAULT NULL,
-                              PRIMARY KEY (`Id`)
-                            ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-                    ");
-            }
-            var testTable2 = conn.QueryFirstOrDefault<string>("SHOW TABLES LIKE 'TestTable2';");
-            if (!"testtable2".Equals(testTable2, StringComparison.CurrentCultureIgnoreCase))
-            {
-                conn.Execute(@"
-                             CREATE TABLE `testtable2` (
+                            CREATE TABLE `user` (
                               `Id` int(11) NOT NULL AUTO_INCREMENT,
-                              `TestMethodName` varchar(200)  DEFAULT NULL,
-                              `TestResult` varchar(200)  DEFAULT NULL,
                               `CreateTime` datetime(6) NOT NULL,
                               `UpdateTime` datetime(6) DEFAULT NULL,
-                              `IsDelete` bit(1) NOT NULL,
+                              `IsDelete` tinyint(1) NOT NULL,
                               `DeleteTime` datetime(6) DEFAULT NULL,
+                              `UserName` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+                              `Password` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+                              `Mobile` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
                               PRIMARY KEY (`Id`)
-                            ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+                            ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
                     ");
             }
         }
 
-        [Fact, Order(1)]
-        public async Task QueryPagedAsync()
+        private void InitUsers()
         {
-            if (await _testTable2Repository.CountAsync() <= 10)
+            if (_repository.Count(x => x.IsDelete == false) <= 10)
             {
-                var posts = new List<TestTable2>();
+                var users = new List<User>();
                 for (int i = 0; i < 20; i++)
                 {
-                    posts.Add(new TestTable2
+                    users.Add(new User
                     {
-                        TestMethodName = "QueryPagedAsync" + i,
-                        TestResult = "Insert Success" + i,
+                        UserName = "InitUsers_" + i
                     });
                 }
-                await _testTable2Repository.InsertAsync(posts);
+                _repository.Insert(users);
                 _unitOfWork.SaveChanges();
             }
-            var pageResult = await _unitOfWork.QueryPagedAsync<TestTable2>(1, 10, "select * from TestTable2 where isDelete = @isDelete order by id desc", new { isDelete = 0 });
+        }
+
+
+        [Fact, Order(1)]
+        public async Task DapperInsert()
+        {
+            var user = new User
+            {
+                UserName = "DapperInsert"
+            };
+
+            await _unitOfWork.ExecuteAsync("INSERT INTO `user` (`CreateTime`, `IsDelete`, `UserName`) VALUES (now(), 0, @UserName);", user);
+
+            var users = await _unitOfWork.QueryAsync<User>("select * from user where UserName =@UserName", user);
+            Assert.True(users.First().Id > 0);
+            Assert.True(user.UserName == users.First().UserName);
+        }
+
+        [Fact]
+        public async Task QueryAsync()
+        {
+            InitUsers();
+            var users = await _unitOfWork.QueryAsync<User>("select * from user;");
+            Assert.True(users.Any());
+        }
+
+        [Fact]
+        public async Task QueryPagedAsync()
+        {
+            InitUsers();
+            var pageResult = await _unitOfWork.QueryPagedAsync<User>(1, 10, "select * from user where isDelete = @isDelete order by id desc", new { isDelete = 0 });
             Assert.NotNull(pageResult);
             Assert.True(pageResult.Total >= 10);
         }
 
-        [Fact, Order(2)]
-        public async Task FirstOrDefaultAsync()
+        [Fact]
+        public async Task Transaction()
         {
-            //注意这里不会调用TestTable2Repository重写的FirstOrDefaultAsync，需要注入 ITestTable2Repository 才能调用重写的FirstOrDefaultAsync方法
-            var entity = await _testTable2Repository.FirstOrDefaultAsync();
-            Assert.True(entity.Id > 0);
+            var user1 = new User { UserName = "Transaction_1" };
+            var user2 = new User { UserName = "Transaction_2" };
+            using (var tran = _unitOfWork.BeginTransaction())
+            {
+                try
+                {
+                    await _unitOfWork.ExecuteAsync("INSERT INTO `user` (`CreateTime`, `IsDelete`, `UserName`) VALUES (now(), 0, @UserName);", user1, tran);
+                    await _unitOfWork.ExecuteAsync("INSERT INTO `user` (`CreateTime`, `IsDelete`, `UserName`) VALUES (now(), 0, @UserName);", user2, tran);
+                    throw new Exception();
+                    tran.Commit();
+                }
+                catch (Exception e)
+                {
+                    tran.Rollback();
+                }
+            }
+            var findUser1 = _unitOfWork.GetConnection().QueryFirstOrDefault<User>("select * from user where UserName =@UserName", user1);
+            var findUser2 = _unitOfWork.GetConnection().QueryFirstOrDefault<User>("select * from user where UserName =@UserName", user2);
+            Assert.Null(findUser1);
+            Assert.Null(findUser2);
         }
+
+        [Fact]
+        public async Task HybridTransaction()
+        {
+            var user1 = new User { UserName = "HybridTransaction_1" };
+            var user2 = new User { UserName = "HybridTransaction_2" };
+            using (var tran = _unitOfWork.BeginTransaction())
+            {
+                try
+                {
+                    await _userRepository.InsertAsync(user1);
+                    await _unitOfWork.ExecuteAsync("INSERT INTO `user` (`CreateTime`, `IsDelete`, `UserName`) VALUES (now(), 0, @UserName);", user2, tran);
+                    throw new Exception();
+                    tran.Commit();
+                }
+                catch (Exception e)
+                {
+                    tran.Rollback();
+                }
+            }
+            var findUser1 = _unitOfWork.GetConnection().QueryFirstOrDefault<User>("select * from user where UserName =@UserName", user1);
+            var findUser2 = _unitOfWork.GetConnection().QueryFirstOrDefault<User>("select * from user where UserName =@UserName", user2);
+            Assert.Null(findUser1);
+            Assert.Null(findUser2);
+        }
+
     }
 }

@@ -1,7 +1,6 @@
 using Dapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,20 +12,18 @@ namespace Wei.Repository.Test
 {
     public class RepositoryTest
     {
+        readonly ServiceProvider _serviceProvider;
         readonly IUnitOfWork _unitOfWork;
 
         /// <summary>
-        /// 泛型仓储
+        /// 自定义AppService
         /// </summary>
-        readonly IRepository<TestTable1, long> _testTable1Repository;
+        readonly IUserRepository _userRepository;
 
         /// <summary>
-        /// 自定义仓储
+        /// 泛型AppService
         /// </summary>
-        readonly ITestTable2Repository _testTable2Repository;
-
-        readonly ServiceProvider _serviceProvider;
-
+        readonly IRepository<User> _repository;
         public RepositoryTest()
         {
             var services = new ServiceCollection();
@@ -36,387 +33,468 @@ namespace Wei.Repository.Test
             });
             _serviceProvider = services.BuildServiceProvider();
             _unitOfWork = _serviceProvider.GetRequiredService<IUnitOfWork>();
-            _testTable1Repository = _serviceProvider.GetRequiredService<IRepository<TestTable1, long>>();
-            _testTable2Repository = _serviceProvider.GetRequiredService<ITestTable2Repository>();
-            InitTestTable();
+
+            _userRepository = _serviceProvider.GetRequiredService<IUserRepository>();
+            _repository = _serviceProvider.GetRequiredService<IRepository<User>>();
+            InitUserTable();
         }
 
-        private void InitTestTable()
+        private void InitUserTable()
         {
-            var conn = _unitOfWork.GetConnection();
-            var testTable1 = conn.QueryFirstOrDefault<string>("SHOW TABLES LIKE 'TestTable1';");
-            if (!"testtable1".Equals(testTable1, StringComparison.CurrentCultureIgnoreCase))
+            using var scope = _serviceProvider.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            using var conn = unitOfWork.GetConnection();
+            var userTable = conn.QueryFirstOrDefault<string>("SHOW TABLES LIKE 'User';");
+            if (!"User".Equals(userTable, StringComparison.CurrentCultureIgnoreCase))
             {
                 conn.Execute(@"
-                             CREATE TABLE `testtable1` (
+                            CREATE TABLE `user` (
                               `Id` int(11) NOT NULL AUTO_INCREMENT,
-                              `TestMethodName` varchar(200)  DEFAULT NULL,
-                              `TestResult` varchar(200)  DEFAULT NULL,
                               `CreateTime` datetime(6) NOT NULL,
                               `UpdateTime` datetime(6) DEFAULT NULL,
-                              `IsDelete` bit(1) NOT NULL,
+                              `IsDelete` tinyint(1) NOT NULL,
                               `DeleteTime` datetime(6) DEFAULT NULL,
+                              `UserName` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+                              `Password` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+                              `Mobile` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
                               PRIMARY KEY (`Id`)
-                            ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+                            ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
                     ");
             }
-            var testTable2 = conn.QueryFirstOrDefault<string>("SHOW TABLES LIKE 'TestTable2';");
-            if (!"testtable2".Equals(testTable2, StringComparison.CurrentCultureIgnoreCase))
-            {
-                conn.Execute(@"
-                             CREATE TABLE `testtable2` (
-                              `Id` int(11) NOT NULL AUTO_INCREMENT,
-                              `TestMethodName` varchar(200)  DEFAULT NULL,
-                              `TestResult` varchar(200)  DEFAULT NULL,
-                              `CreateTime` datetime(6) NOT NULL,
-                              `UpdateTime` datetime(6) DEFAULT NULL,
-                              `IsDelete` bit(1) NOT NULL,
-                              `DeleteTime` datetime(6) DEFAULT NULL,
-                              PRIMARY KEY (`Id`)
-                            ) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-                    ");
-            }
-        }
-
-
-        [Fact, Order(0)]
-        public void TestTable2()
-        {
-            var entity = new TestTable2
-            {
-                TestMethodName = nameof(TestTable2),
-                TestResult = $"{nameof(TestTable2)} success",
-            };
-            entity = _testTable2Repository.Insert(entity);
-            _unitOfWork.SaveChanges();
-            Assert.True(entity.Id > 0);
-
-            entity.TestResult += " Update success";
-            _testTable2Repository.Update(entity);
-            _unitOfWork.SaveChanges();
-            Assert.NotNull(entity.UpdateTime);
-
-            _testTable2Repository.Delete(entity);
-            _unitOfWork.SaveChanges();
-
-            var newEntity = _testTable2Repository.Get(entity.Id);
-            Assert.True(newEntity.IsDelete);
-
-            var all = _testTable2Repository.GetAll();
-            Assert.Null(all);
         }
 
         #region Insert
         [Fact, Order(1)]
         public void Insert()
         {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(Insert),
-                TestResult = $"{nameof(Insert)} success",
-            };
-            _testTable1Repository.Insert(entity);
+            var user1 = _userRepository.Insert(new User { UserName = "userRepository_Insert" });
+            var user2 = _repository.Insert(new User { UserName = "repository_Insert" });
+            _unitOfWork.SaveChanges();
+            Assert.True(user1.Id > 0);
+            Assert.True(user2.Id > 0);
+        }
+
+        [Fact, Order(1)]
+        public async Task InsertAsync()
+        {
+            var user1 = await _userRepository.InsertAsync(new User { UserName = "userRepository_InsertAsync" });
+            var user2 = await _repository.InsertAsync(new User { UserName = "repository_InsertAsync" });
+            await _unitOfWork.SaveChangesAsync();
+            Assert.True(user1.Id > 0);
+            Assert.True(user2.Id > 0);
+        }
+
+        [Fact, Order(1)]
+        public void InsertRange()
+        {
+            _userRepository.Insert(new List<User> {
+                new User { UserName = "userRepository_InsertRange_1" },
+                new User { UserName = "userRepository_InsertRange_2" },
+            });
+            _repository.Insert(new List<User> {
+                new User { UserName = "repository_InsertRange_1" },
+                new User { UserName = "repository_InsertRange_2" },
+            });
+            _unitOfWork.SaveChanges();
+            var users1 = _userRepository.GetAll(x => x.UserName.StartsWith("userRepository_InsertRange_"));
+            var users2 = _repository.GetAll(x => x.UserName.StartsWith("repository_InsertRange_"));
+
+            Assert.True(users1.Count >= 2);
+            Assert.True(users2.Count >= 2);
+
+        }
+
+        [Fact, Order(1)]
+        public async Task InsertRangeAsync()
+        {
+            await _userRepository.InsertAsync(new List<User> {
+                new User { UserName = "userRepository_InsertRangeAsync_1" },
+                new User { UserName = "userRepository_InsertRangeAsync_2" },
+            });
+            await _repository.InsertAsync(new List<User> {
+                new User { UserName = "repository_InsertRangeAsync_1" },
+                new User { UserName = "repository_InsertRangeAsync_2" },
+            });
+            await _unitOfWork.SaveChangesAsync();
+            var users1 = await _userRepository.GetAllAsync(x => x.UserName.StartsWith("userRepository_InsertRangeAsync_"));
+            var users2 = await _repository.GetAllAsync(x => x.UserName.StartsWith("repository_InsertRangeAsync_"));
+
+            Assert.True(users1.Count >= 2);
+            Assert.True(users2.Count >= 2);
+
+        }
+
+        #endregion Insert
+
+        #region Update
+        [Fact, Order(2)]
+        public void Update()
+        {
+            var user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.UserName == "userRepository_Insert");
+            user1.Mobile = "13012341234";
+            _userRepository.Update(user1);
+
+            var user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.UserName == "repository_Insert");
+            user2.Mobile = "13056785678";
+            _userRepository.Update(user2);
+
             _unitOfWork.SaveChanges();
 
-            Assert.True(entity.Id > 0);
+            user1 = _userRepository.Get(user1.Id);
+            user2 = _repository.Get(user2.Id);
+
+            Assert.Equal("13012341234", user1.Mobile);
+            Assert.Equal("13056785678", user2.Mobile);
+            Assert.NotNull(user1.UpdateTime);
+            Assert.NotNull(user2.UpdateTime);
         }
 
         [Fact, Order(2)]
-        public async Task InsertAsync()
+        public async Task UpdateAsync()
         {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(InsertAsync),
-                TestResult = $"{nameof(InsertAsync)} success",
-            };
-            await _testTable1Repository.InsertAsync(entity);
+            var user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.UserName == "userRepository_InsertAsync");
+            user1.Mobile = "13012341234";
+            await _userRepository.UpdateAsync(user1);
+
+            var user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.UserName == "repository_InsertAsync");
+            user2.Mobile = "13056785678";
+            await _repository.UpdateAsync(user2);
+
             await _unitOfWork.SaveChangesAsync();
 
-            Assert.True(entity.Id > 0);
+            user1 = await _userRepository.GetAsync(user1.Id);
+            user2 = await _repository.GetAsync(user2.Id);
+
+            Assert.Equal("13012341234", user1.Mobile);
+            Assert.Equal("13056785678", user2.Mobile);
+            Assert.NotNull(user1.UpdateTime);
+            Assert.NotNull(user2.UpdateTime);
+
+        }
+        #endregion Update
+
+        #region Delete
+
+        [Fact, Order(3)]
+        public void Delete()
+        {
+            var user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.UserName == "userRepository_Insert");
+            _userRepository.Delete(user1);
+
+            var user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.UserName == "repository_Insert");
+            _repository.Delete(user2);
+
+            _unitOfWork.SaveChanges();
+
+            user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.Id == user1.Id);
+            user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.Id == user2.Id);
+
+            Assert.True(user1.IsDelete);
+            Assert.True(user2.IsDelete);
+            Assert.NotNull(user1.DeleteTime);
+            Assert.NotNull(user2.DeleteTime);
         }
 
         [Fact, Order(3)]
-        public void InsertRange()
-        {
-            var entities = new List<TestTable1>
-            {
-                new TestTable1
-                {
-                    TestMethodName =$"{nameof(InsertRange)}_1",
-                    TestResult = $"{nameof(InsertRange)} success",
-                },
-                new TestTable1
-                {
-                    TestMethodName =$"{nameof(InsertRange)}_2",
-                    TestResult = $"{nameof(InsertRange)} success",
-                },
-            };
-            _testTable1Repository.Insert(entities);
-            _unitOfWork.SaveChanges();
-
-            Assert.DoesNotContain(entities, x => x.Id == 0);
-
-        }
-
-        [Fact, Order(4)]
-        public async Task InsertRangeAsync()
-        {
-            var entities = new List<TestTable1>
-            {
-                new TestTable1
-                {
-                    TestMethodName =$"{nameof(InsertRangeAsync)}_1",
-                    TestResult = $"{nameof(InsertRangeAsync)}_1 success",
-                },
-                new TestTable1
-                {
-                    TestMethodName =$"{nameof(InsertRangeAsync)}_2",
-                    TestResult = $"{nameof(InsertRangeAsync)}_2 success",
-                },
-            };
-            await _testTable1Repository.InsertAsync(entities);
-            await _unitOfWork.SaveChangesAsync();
-
-            Assert.DoesNotContain(entities, x => x.Id == 0);
-        }
-        #endregion
-
-        #region Update
-        [Fact, Order(5)]
-        public void Update()
-        {
-            var entity = _testTable1Repository.QueryNoTracking().FirstOrDefault(x => "Insert".Equals(x.TestMethodName));
-            entity.TestResult += " Update success";
-            _testTable1Repository.Update(entity);
-            _unitOfWork.SaveChanges();
-            entity = _testTable1Repository.Get(entity.Id);
-            Assert.NotNull(entity.UpdateTime);
-        }
-
-        [Fact, Order(5)]
-        public async Task UpdateAsync()
-        {
-            var entity = _testTable1Repository.QueryNoTracking().FirstOrDefault(x => "InsertAsync".Equals(x.TestMethodName));
-            entity.TestResult += " UpdateAsync success";
-            await _testTable1Repository.UpdateAsync(entity);
-            await _unitOfWork.SaveChangesAsync();
-            entity = await _testTable1Repository.GetAsync(entity.Id);
-            Assert.NotNull(entity.UpdateTime);
-        }
-        #endregion
-
-        #region LogicDelete
-        [Fact, Order(6)]
-        public void Delete()
-        {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(Delete),
-                TestResult = $"{nameof(Delete)} success",
-            };
-            _testTable1Repository.Insert(entity);
-            _unitOfWork.SaveChanges();
-            _testTable1Repository.Delete(entity);
-            _unitOfWork.SaveChanges();
-
-            var newEntity = _testTable1Repository.Get(entity.Id);
-            Assert.True(newEntity.IsDelete);
-            Assert.NotNull(newEntity.DeleteTime);
-        }
-
-        [Fact, Order(6)]
-        public void DeleteById()
-        {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(DeleteById),
-                TestResult = $"{nameof(DeleteById)} success",
-            };
-            _testTable1Repository.Insert(entity);
-            _unitOfWork.SaveChanges();
-            _testTable1Repository.Delete(entity.Id);
-            _unitOfWork.SaveChanges();
-
-            var newEntity = _testTable1Repository.Get(entity.Id);
-            Assert.True(newEntity.IsDelete);
-            Assert.NotNull(newEntity.DeleteTime);
-        }
-
-        [Fact, Order(6)]
-        public void DeleteBy()
-        {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(DeleteBy),
-                TestResult = $"{nameof(DeleteBy)} success",
-            };
-            _testTable1Repository.Insert(entity);
-            _unitOfWork.SaveChanges();
-            _testTable1Repository.Delete(x => x.Id == entity.Id);
-            _unitOfWork.SaveChanges();
-
-            var newEntity = _testTable1Repository.Get(entity.Id);
-            Assert.True(newEntity.IsDelete);
-            Assert.NotNull(newEntity.DeleteTime);
-        }
-
-        [Fact, Order(6)]
         public async Task DeleteAsync()
         {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(DeleteAsync),
-                TestResult = $"{nameof(DeleteAsync)} success",
-            };
-            await _testTable1Repository.InsertAsync(entity);
-            await _unitOfWork.SaveChangesAsync();
-            await _testTable1Repository.DeleteAsync(entity);
+            var user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.UserName == "userRepository_InsertAsync");
+            await _userRepository.DeleteAsync(user1);
+
+            var user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.UserName == "repository_InsertAsync");
+            await _repository.DeleteAsync(user2);
+
             await _unitOfWork.SaveChangesAsync();
 
-            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
-            Assert.True(newEntity.IsDelete);
-            Assert.NotNull(newEntity.DeleteTime);
+            user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.Id == user1.Id);
+            user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.Id == user2.Id);
+
+            Assert.True(user1.IsDelete);
+            Assert.True(user2.IsDelete);
+            Assert.NotNull(user1.DeleteTime);
+            Assert.NotNull(user2.DeleteTime);
         }
 
-        [Fact, Order(6)]
+        [Fact, Order(3)]
+        public void DeleteById()
+        {
+            var user1 = _userRepository.Insert(new User { UserName = "userRepository_DeleteById" });
+            var user2 = _repository.Insert(new User { UserName = "repository_DeleteById" });
+            _unitOfWork.SaveChanges();
+            Assert.True(user1.Id > 0);
+            Assert.True(user2.Id > 0);
+
+            _userRepository.Delete(user1.Id);
+            _repository.Delete(user2.Id);
+            _unitOfWork.SaveChanges();
+
+            user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.Id == user1.Id);
+            user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.Id == user2.Id);
+
+            Assert.True(user1.IsDelete);
+            Assert.True(user2.IsDelete);
+            Assert.NotNull(user1.DeleteTime);
+            Assert.NotNull(user2.DeleteTime);
+        }
+
+        [Fact, Order(3)]
         public async Task DeleteByIdAsync()
         {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(DeleteByIdAsync),
-                TestResult = $"{nameof(DeleteByIdAsync)} success",
-            };
-            await _testTable1Repository.InsertAsync(entity);
+            var user1 = await _userRepository.InsertAsync(new User { UserName = "userRepository_DeleteByIdAsync" });
+            var user2 = await _repository.InsertAsync(new User { UserName = "repository_DeleteByIdAsync" });
             await _unitOfWork.SaveChangesAsync();
-            await _testTable1Repository.DeleteAsync(entity.Id);
+            Assert.True(user1.Id > 0);
+            Assert.True(user2.Id > 0);
+
+            await _userRepository.DeleteAsync(user1.Id);
+            await _repository.DeleteAsync(user2.Id);
             await _unitOfWork.SaveChangesAsync();
 
-            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
-            Assert.True(newEntity.IsDelete);
-            Assert.NotNull(newEntity.DeleteTime);
+            user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.Id == user1.Id);
+            user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.Id == user2.Id);
+
+            Assert.True(user1.IsDelete);
+            Assert.True(user2.IsDelete);
+            Assert.NotNull(user1.DeleteTime);
+            Assert.NotNull(user2.DeleteTime);
         }
 
-        [Fact, Order(6)]
+        [Fact, Order(3)]
+        public void DeleteBy()
+        {
+            _userRepository.Delete(x => x.UserName.StartsWith("userRepository_InsertRange_"));
+            _repository.Delete(x => x.UserName.StartsWith("repository_InsertRange_"));
+            _unitOfWork.SaveChanges();
+
+            var user1 = _userRepository.QueryNoTracking().Where(x => x.UserName.StartsWith("userRepository_InsertRange_")).ToList();
+            var user2 = _repository.QueryNoTracking().Where(x => x.UserName.StartsWith("repository_InsertRange_")).ToList();
+
+            var isAllDelete1 = !(user1.Any(x => x.IsDelete == false));
+            var isAllDelete2 = !(user2.Any(x => x.IsDelete == false));
+
+            Assert.True(isAllDelete1);
+            Assert.True(isAllDelete2);
+        }
+
+        [Fact, Order(3)]
         public async Task DeleteByAsync()
         {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(DeleteByAsync),
-                TestResult = $"{nameof(DeleteByAsync)} success",
-            };
-            await _testTable1Repository.InsertAsync(entity);
-            await _unitOfWork.SaveChangesAsync();
-            await _testTable1Repository.DeleteAsync(x => x.Id == entity.Id);
+            await _userRepository.DeleteAsync(x => x.UserName.StartsWith("userRepository_InsertRangeAsync_"));
+            await _repository.DeleteAsync(x => x.UserName.StartsWith("repository_InsertRangeAsync_"));
             await _unitOfWork.SaveChangesAsync();
 
-            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
-            Assert.True(newEntity.IsDelete);
-            Assert.NotNull(newEntity.DeleteTime);
+            var user1 = await _userRepository.QueryNoTracking().Where(x => x.UserName.StartsWith("userRepository_InsertRangeAsync_")).ToListAsync();
+            var user2 = await _repository.QueryNoTracking().Where(x => x.UserName.StartsWith("repository_InsertRangeAsync_")).ToListAsync();
+
+            var isAllDelete1 = !(user1.Any(x => x.IsDelete == false));
+            var isAllDelete2 = !(user2.Any(x => x.IsDelete == false));
+
+            Assert.True(isAllDelete1);
+            Assert.True(isAllDelete2);
         }
+
         #endregion
 
         #region HardDelete
-        [Fact, Order(6)]
+
+        [Fact, Order(4)]
         public void HardDelete()
         {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(HardDelete),
-                TestResult = $"{nameof(HardDelete)} success",
-            };
-            _testTable1Repository.Insert(entity);
-            _unitOfWork.SaveChanges();
-            _testTable1Repository.HardDelete(entity);
+            var user1 = _userRepository.Insert(new User { UserName = "userRepository_HardDelete" });
+            var user2 = _repository.Insert(new User { UserName = "repository_HardDelete" });
             _unitOfWork.SaveChanges();
 
-            var newEntity = _testTable1Repository.Get(entity.Id);
-            Assert.Null(newEntity);
+            _userRepository.HardDelete(user1);
+            _repository.HardDelete(user2);
+            _unitOfWork.SaveChanges();
+
+            user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.Id == user1.Id);
+            user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.Id == user2.Id);
+
+            Assert.Null(user1);
+            Assert.Null(user2);
         }
 
-        [Fact, Order(6)]
-        public void HardDeleteById()
-        {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(HardDeleteById),
-                TestResult = $"{nameof(HardDeleteById)} success",
-            };
-            _testTable1Repository.Insert(entity);
-            _unitOfWork.SaveChanges();
-            _testTable1Repository.HardDelete(entity.Id);
-            _unitOfWork.SaveChanges();
-
-            var newEntity = _testTable1Repository.Get(entity.Id);
-            Assert.Null(newEntity);
-        }
-
-        [Fact, Order(6)]
-        public void HardDeleteBy()
-        {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(HardDeleteBy),
-                TestResult = $"{nameof(HardDeleteBy)} success",
-            };
-            _testTable1Repository.Insert(entity);
-            _unitOfWork.SaveChanges();
-            _testTable1Repository.HardDelete(x => x.Id == entity.Id);
-            _unitOfWork.SaveChanges();
-
-            var newEntity = _testTable1Repository.Get(entity.Id);
-            Assert.Null(newEntity);
-        }
-
-        [Fact, Order(6)]
+        [Fact, Order(4)]
         public async Task HardDeleteAsync()
         {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(HardDeleteAsync),
-                TestResult = $"{nameof(HardDeleteAsync)} success",
-            };
-            await _testTable1Repository.InsertAsync(entity);
-            await _unitOfWork.SaveChangesAsync();
-            await _testTable1Repository.HardDeleteAsync(entity);
+            var user1 = await _userRepository.InsertAsync(new User { UserName = "userRepository_HardDeleteAsync" });
+            var user2 = await _repository.InsertAsync(new User { UserName = "repository_HardDeleteAsync" });
             await _unitOfWork.SaveChangesAsync();
 
-            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
-            Assert.Null(newEntity);
+            await _userRepository.HardDeleteAsync(user1);
+            await _repository.HardDeleteAsync(user2);
+            await _unitOfWork.SaveChangesAsync();
+
+            user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.Id == user1.Id);
+            user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.Id == user2.Id);
+
+            Assert.Null(user1);
+            Assert.Null(user2);
         }
 
-        [Fact, Order(6)]
+        [Fact, Order(4)]
+        public void HardDeleteById()
+        {
+            var user1 = _userRepository.Insert(new User { UserName = "userRepository_HardDeleteById" });
+            var user2 = _repository.Insert(new User { UserName = "repository_HardDeleteById" });
+            _unitOfWork.SaveChanges();
+
+            _userRepository.HardDelete(user1.Id);
+            _repository.HardDelete(user2.Id);
+            _unitOfWork.SaveChanges();
+
+            user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.Id == user1.Id);
+            user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.Id == user2.Id);
+
+            Assert.Null(user1);
+            Assert.Null(user2);
+        }
+
+        [Fact, Order(4)]
         public async Task HardDeleteByIdAsync()
         {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(HardDeleteByIdAsync),
-                TestResult = $"{nameof(HardDeleteByIdAsync)} success",
-            };
-            await _testTable1Repository.InsertAsync(entity);
-            await _unitOfWork.SaveChangesAsync();
-            await _testTable1Repository.HardDeleteAsync(entity.Id);
+            var user1 = await _userRepository.InsertAsync(new User { UserName = "userRepository_HardDeleteByIdAsync" });
+            var user2 = await _repository.InsertAsync(new User { UserName = "repository_HardDeleteByIdAsync" });
             await _unitOfWork.SaveChangesAsync();
 
-            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
-            Assert.Null(newEntity);
+            await _userRepository.HardDeleteAsync(user1.Id);
+            await _repository.HardDeleteAsync(user2.Id);
+            await _unitOfWork.SaveChangesAsync();
+
+            user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.Id == user1.Id);
+            user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.Id == user2.Id);
+
+            Assert.Null(user1);
+            Assert.Null(user2);
         }
 
-        [Fact, Order(6)]
+        [Fact, Order(4)]
+        public void HardDeleteBy()
+        {
+            var user1 = _userRepository.Insert(new User { UserName = "userRepository_HardDeleteById" });
+            var user2 = _repository.Insert(new User { UserName = "repository_HardDeleteById" });
+            _unitOfWork.SaveChanges();
+
+            _userRepository.HardDelete(user1.Id);
+            _repository.HardDelete(user2.Id);
+            _unitOfWork.SaveChanges();
+
+            user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.Id == user1.Id);
+            user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.Id == user2.Id);
+
+            Assert.Null(user1);
+            Assert.Null(user2);
+        }
+
+        [Fact, Order(4)]
         public async Task HardDeleteByAsync()
         {
-            var entity = new TestTable1
-            {
-                TestMethodName = nameof(HardDeleteByAsync),
-                TestResult = $"{nameof(HardDeleteByAsync)} success",
-            };
-            await _testTable1Repository.InsertAsync(entity);
-            await _unitOfWork.SaveChangesAsync();
-            await _testTable1Repository.HardDeleteAsync(x => x.Id == entity.Id);
+            await _userRepository.InsertAsync(
+                    new List<User>
+                    {
+                        new User { UserName = "userRepository_HardDeleteByAsync_1" },
+                        new User { UserName = "userRepository_HardDeleteByAsync_2" },
+                    }
+                );
+            await _repository.InsertAsync(
+                    new List<User>
+                    {
+                        new User { UserName = "repository_HardDeleteByAsync_1" },
+                        new User { UserName = "repository_HardDeleteByAsync_2" },
+                    }
+                );
             await _unitOfWork.SaveChangesAsync();
 
-            var newEntity = await _testTable1Repository.GetAsync(entity.Id);
-            Assert.Null(newEntity);
+            var user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.UserName.StartsWith("userRepository_HardDeleteByAsync_"));
+            var user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.UserName.StartsWith("repository_HardDeleteByAsync_"));
+            Assert.NotNull(user1);
+            Assert.NotNull(user2);
+
+            await _userRepository.HardDeleteAsync(x => x.UserName.StartsWith("userRepository_HardDeleteByAsync_"));
+            await _repository.HardDeleteAsync(x => x.UserName.StartsWith("repository_HardDeleteByAsync_"));
+            await _unitOfWork.SaveChangesAsync();
+
+            user1 = _userRepository.QueryNoTracking().FirstOrDefault(x => x.UserName.StartsWith("userRepository_HardDeleteByAsync_"));
+            user2 = _repository.QueryNoTracking().FirstOrDefault(x => x.UserName.StartsWith("repository_HardDeleteByAsync_"));
+
+            Assert.Null(user1);
+            Assert.Null(user2);
         }
+
         #endregion
+
+        #region Aggregate
+        [Fact, Order(5)]
+        public void Any()
+        {
+            var hasDelete = _userRepository.Any(x => x.IsDelete);
+            Assert.True(hasDelete);
+        }
+
+        [Fact, Order(5)]
+        public async Task AnyAsync()
+        {
+            var hasDelete = await _userRepository.AnyAsync(x => x.IsDelete);
+            Assert.True(hasDelete);
+        }
+
+        [Fact, Order(5)]
+        public void Count()
+        {
+            var count = _userRepository.Count();
+            Assert.True(count > 0);
+        }
+
+        [Fact, Order(5)]
+        public async Task CountAsync()
+        {
+            var count = await _userRepository.CountAsync();
+            Assert.True(count > 0);
+        }
+
+        [Fact, Order(5)]
+        public void CountBy()
+        {
+            var count = _userRepository.Count(x => x.IsDelete);
+            Assert.True(count > 0);
+        }
+
+        [Fact, Order(5)]
+        public async Task CountByAsync()
+        {
+            var count = await _userRepository.CountAsync(x => x.IsDelete);
+            Assert.True(count > 0);
+        }
+        [Fact, Order(5)]
+        public void LongCount()
+        {
+            var count = _userRepository.LongCount();
+            Assert.True(count > 0);
+        }
+
+        [Fact, Order(5)]
+        public async Task LongCountAsync()
+        {
+            var count = await _userRepository.LongCountAsync();
+            Assert.True(count > 0);
+        }
+
+        [Fact, Order(5)]
+        public void LongCountBy()
+        {
+            var count = _userRepository.LongCount(x => x.IsDelete);
+            Assert.True(count > 0);
+        }
+
+        [Fact, Order(5)]
+        public async Task LongCountByAsync()
+        {
+            var count = await _userRepository.LongCountAsync(x => x.IsDelete);
+            Assert.True(count > 0);
+        }
+
+        #endregion
+
     }
 }
