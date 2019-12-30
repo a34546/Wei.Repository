@@ -278,12 +278,4 @@ using (var tran = _unitOfWork.BeginTransaction())
 await _unitOfWork.GetConnection().QueryAsync("select * from user");
 ```
 ---
-
-
-**基于Wei.Repository封装的Wei.Service**
-
-
-> 	[Wei.Service](https://github.com/a34546/Wei.Service/blob/master/README.md)
-
----
 > 本项目有参考chimp
