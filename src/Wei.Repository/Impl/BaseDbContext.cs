@@ -60,7 +60,10 @@ namespace Wei.Repository
                 switch (entry.State)
                 {
                     case EntityState.Modified:
-                        entityBase.UpdateTime = DateTime.Now;
+                        if (entityBase.IsDelete)
+                            entityBase.DeleteTime = DateTime.Now;
+                        else
+                            entityBase.UpdateTime = DateTime.Now;
                         break;
                     case EntityState.Added:
                         entityBase.CreateTime = DateTime.Now;
