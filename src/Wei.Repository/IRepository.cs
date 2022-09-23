@@ -1,19 +1,29 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Wei.Repository
 {
-    public interface IRepository<TEntity> : IRepository<TEntity, int>
-        where TEntity : class, IEntity
+
+    public interface IRepository<TEntity> : IRepositoryBase<TEntity>
+       where TEntity : class
     {
+
     }
 
-    public interface IRepository<TEntity, TPrimaryKey>
-        where TEntity : class, IEntity<TPrimaryKey>
+    public interface IRepository<TDbContext, TEntity> : IRepositoryBase<TEntity>
+        where TEntity : class
+        where TDbContext : DbContext
+    {
+
+    }
+
+    public interface IRepositoryBase<TEntity>
+        where TEntity : class
     {
         #region Query
 
@@ -32,24 +42,24 @@ namespace Wei.Repository
         /// <summary>
         /// 根据主键获取
         /// </summary>
-        TEntity Get(TPrimaryKey id);
-        Task<TEntity> GetAsync(TPrimaryKey id);
+        TEntity Get(object id);
+        ValueTask<TEntity> GetAsync(object id, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// 获取所有,默认过滤IsDelete=1的
         /// </summary>
-        List<TEntity> GetAll();
-        Task<List<TEntity>> GetAllAsync();
-        List<TEntity> GetAll(Expression<Func<TEntity, bool>> predicate);
-        Task<List<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>> predicate);
+        IEnumerable<TEntity> GetAll();
+        Task<IEnumerable<TEntity>> GetAllAsync(CancellationToken cancellationToken = default);
+        IEnumerable<TEntity> GetAll(Expression<Func<TEntity, bool>> predicate);
+        Task<IEnumerable<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// 获取第一个
         /// </summary>
         TEntity FirstOrDefault();
-        Task<TEntity> FirstOrDefaultAsync();
+        Task<TEntity> FirstOrDefaultAsync(CancellationToken cancellationToken = default);
         TEntity FirstOrDefault(Expression<Func<TEntity, bool>> predicate);
-        Task<TEntity> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate);
+        Task<TEntity> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
 
         #endregion
 
@@ -59,14 +69,14 @@ namespace Wei.Repository
         /// 新增
         /// </summary>
         TEntity Insert(TEntity entity);
-        Task<TEntity> InsertAsync(TEntity entity);
+        Task<TEntity> InsertAsync(TEntity entity, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// 批量新增
         /// </summary>
         /// <param name="entities"></param>
-        void Insert(List<TEntity> entities);
-        Task InsertAsync(List<TEntity> entities);
+        void Insert(IEnumerable<TEntity> entities);
+        Task InsertAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
 
         #endregion Insert
 
@@ -76,55 +86,32 @@ namespace Wei.Repository
         /// 更新
         /// </summary>
         TEntity Update(TEntity entity);
-        Task<TEntity> UpdateAsync(TEntity entity);
+        void Update(IEnumerable<TEntity> entities);
 
         #endregion Update
 
         #region Delete
 
         /// <summary>
-        /// 逻辑删除，标记IsDelete = 1
-        /// </summary>
-        /// <param name="entity"></param>
-        void Delete(TEntity entity);
-        Task DeleteAsync(TEntity entity);
-        void Delete(TPrimaryKey id);
-        Task DeleteAsync(TPrimaryKey id);
-        void Delete(Expression<Func<TEntity, bool>> predicate);
-        Task DeleteAsync(Expression<Func<TEntity, bool>> predicate);
-
-        #endregion
-
-        #region HardDelete
-
-        /// <summary>
         /// 物理删除，从数据库中移除
         /// </summary>
         /// <param name="entity"></param>
-        void HardDelete(TEntity entity);
-        Task HardDeleteAsync(TEntity entity);
-        void HardDelete(TPrimaryKey id);
-        Task HardDeleteAsync(TPrimaryKey id);
-        void HardDelete(Expression<Func<TEntity, bool>> predicate);
-        Task HardDeleteAsync(Expression<Func<TEntity, bool>> predicate);
+        void Delete(TEntity entity);
+        void Delete(object id);
+        void Delete(Expression<Func<TEntity, bool>> predicate);
 
         #endregion
 
         #region Aggregate
-
-        /// <summary>
-        /// 聚合操作
-        /// </summary>
+        bool Any();
+        Task<bool> AnyAsync(CancellationToken cancellationToken = default);
         bool Any(Expression<Func<TEntity, bool>> predicate);
-        Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate);
+        Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
         int Count();
-        Task<int> CountAsync();
+        Task<int> CountAsync(CancellationToken cancellationToken = default);
         int Count(Expression<Func<TEntity, bool>> predicate);
-        Task<int> CountAsync(Expression<Func<TEntity, bool>> predicate);
-        long LongCount();
-        Task<long> LongCountAsync();
-        long LongCount(Expression<Func<TEntity, bool>> predicate);
-        Task<long> LongCountAsync(Expression<Func<TEntity, bool>> predicate);
+        Task<int> CountAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
+
 
         #endregion
     }

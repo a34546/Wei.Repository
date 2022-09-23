@@ -1,10 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Description>基于EFCore+Dapper 封装Repository，实现UnitOfWork,提供基本的CURD操作，可直接注入泛型Repository，也可以继承Repository，重写CURD操作</Description>
-    <PackageReleaseNotes>基于EFCore+Dapper 封装Repository，实现UnitOfWork,提供基本的CURD操作，可直接注入泛型Repository，也可以继承Repository，重写CURD操作</PackageReleaseNotes>
+    <Description>基于EFCore+Dapper 封装Repository，实现UnitOfWork,提供基本的CURD操作,支持多数据</Description>
+    <PackageReleaseNotes>基于EFCore+Dapper 封装Repository，实现UnitOfWork,提供基本的CURD操作,支持多数据</PackageReleaseNotes>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <NeutralLanguage>zh</NeutralLanguage>
     <PackageProjectUrl>https://github.com/a34546/Wei.Repository.git</PackageProjectUrl>
@@ -13,11 +13,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Dapper" Version="2.0.30" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.0.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.0.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="3.0.0" />
-    <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="3.0.0" />
+    <PackageReference Include="Dapper" Version="2.0.123" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="6.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="6.0.9" />
+	<PackageReference Include="Microsoft.Extensions.DependencyModel" Version="6.0.0" />
   </ItemGroup>
 
 </Project>

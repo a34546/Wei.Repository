@@ -4,31 +4,46 @@ using Microsoft.EntityFrameworkCore.Storage;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
-using Wei.Repository.Impl.DapperAdapter;
 
 namespace Wei.Repository
 {
-    public class UnitOfWork : IUnitOfWork
+    public class UnitOfWork : UnitOfWorkBase, IUnitOfWork
     {
-        private readonly DbContext _dbContext;
+        public UnitOfWork(DbContextFactory dbContextFactory)
+        {
+            DbContext = dbContextFactory.GetFirstOrDefaultDbContext();
+        }
+
+        public override DbContext DbContext { get; protected set; }
+    }
+
+    public class UnitOfWork<TDbContext> : UnitOfWorkBase, IUnitOfWork<TDbContext> where TDbContext : DbContext
+    {
+        public UnitOfWork(DbContextFactory dbContextFactory)
+        {
+            DbContext = dbContextFactory.GetDbContext<TDbContext>();
+        }
+
+        public override DbContext DbContext { get; protected set; }
+
+    }
+
+    public abstract class UnitOfWorkBase : IUnitOfWork
+    {
         private bool _disposed = false;
 
-        public UnitOfWork(DbContext context)
-        {
-            _dbContext = context ?? throw new ArgumentNullException(nameof(context));
-        }
+        public abstract DbContext DbContext { get; protected set; }
 
         public int SaveChanges()
         {
-            return _dbContext.SaveChanges();
+            return DbContext.SaveChanges();
         }
 
-        public Task<int> SaveChangesAsync()
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            return _dbContext.SaveChangesAsync();
+            return DbContext.SaveChangesAsync(cancellationToken);
         }
 
         public Task<IEnumerable<TEntity>> QueryAsync<TEntity>(string sql, object param = null, IDbContextTransaction trans = null) where TEntity : class
@@ -43,29 +58,10 @@ namespace Wei.Repository
             var conn = GetConnection();
             return await conn.ExecuteAsync(sql, param, trans?.GetDbTransaction());
         }
-
-        public async Task<Page<TEntity>> QueryPagedAsync<TEntity>(int pageIndex, int pageSize, string sql, object sqlArgs = null) where TEntity : class
-        {
-            if (pageSize < 1 || pageSize > 5000) throw new ArgumentOutOfRangeException(nameof(pageSize));
-            if (pageIndex < 1) throw new ArgumentOutOfRangeException(nameof(pageIndex));
-            var partedSql = PagingUtil.SplitSql(sql);
-            ISqlAdapter sqlAdapter = null;
-            if (_dbContext.Database.IsMySql()) sqlAdapter = new MysqlAdapter();
-            if (_dbContext.Database.IsSqlServer()) sqlAdapter = new SqlServerAdapter();
-            if (sqlAdapter == null) throw new Exception("Unsupported database type");
-            sql = sqlAdapter.PagingBuild(ref partedSql, sqlArgs, (pageIndex - 1) * pageSize, pageSize);
-            var sqlCount = PagingUtil.GetCountSql(partedSql);
-            var conn = GetConnection();
-            var totalCount = await conn.ExecuteScalarAsync<int>(sqlCount, sqlArgs);
-            var items = await conn.QueryAsync<TEntity>(sql, sqlArgs);
-            var pagedList = new Page<TEntity>(items.ToList(), pageIndex - 1, pageSize, totalCount);
-            return pagedList;
-        }
-
-        public IDbContextTransaction BeginTransaction()
-        {
-            return _dbContext.Database.BeginTransaction();
-        }
+        public IDbContextTransaction BeginTransaction() => DbContext.Database.BeginTransaction();
+        public IDbContextTransaction BeginTransaction(IsolationLevel isolationLevel) => DbContext.Database.BeginTransaction(isolationLevel);
+        public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) => DbContext.Database.BeginTransactionAsync(cancellationToken);
+        public Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default) => DbContext.Database.BeginTransactionAsync(isolationLevel, cancellationToken);
 
         public void Dispose()
         {
@@ -79,15 +75,12 @@ namespace Wei.Repository
             {
                 if (disposing)
                 {
-                    _dbContext.Dispose();
+                    DbContext.Dispose();
                 }
             }
             _disposed = true;
         }
 
-        public IDbConnection GetConnection()
-        {
-            return _dbContext.Database.GetDbConnection();
-        }
+        public IDbConnection GetConnection() => DbContext.Database.GetDbConnection();
     }
 }

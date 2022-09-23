@@ -4,212 +4,100 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Wei.Repository
 {
-    public abstract class RepositoryBase<TEntity, TPrimaryKey> : IRepository<TEntity, TPrimaryKey>
-        where TEntity : class, IEntity<TPrimaryKey>
+    public abstract class RepositoryBase1<TEntity> : IRepositoryBase<TEntity>
+        where TEntity : class
     {
-        #region Query
+
         public abstract IQueryable<TEntity> Query();
-
         public abstract IQueryable<TEntity> QueryNoTracking();
-
-        public virtual IQueryable<TEntity> Query(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query().Where(predicate);
-        }
-
-        public virtual IQueryable<TEntity> QueryNoTracking(Expression<Func<TEntity, bool>> predicate)
-        {
-            return QueryNoTracking().Where(predicate);
-        }
-
-        public virtual List<TEntity> GetAll()
-        {
-            return Query(x => x.IsDelete == false).ToList();
-        }
-
-        public virtual Task<List<TEntity>> GetAllAsync()
-        {
-            return Query(x => x.IsDelete == false).ToListAsync();
-        }
-
-        public virtual List<TEntity> GetAll(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query().Where(x => x.IsDelete == false).Where(predicate).ToList();
-        }
-
-        public virtual Task<List<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query().Where(x => x.IsDelete == false).Where(predicate).ToListAsync();
-        }
-
-        public virtual TEntity Get(TPrimaryKey id)
-        {
-            return FirstOrDefault(CreateEqualityExpressionForId(id));
-        }
-
-        public virtual async Task<TEntity> GetAsync(TPrimaryKey id)
-        {
-            return await FirstOrDefaultAsync(CreateEqualityExpressionForId(id));
-        }
-
-        public virtual TEntity FirstOrDefault()
-        {
-            return Query().FirstOrDefault();
-        }
-
-        public virtual Task<TEntity> FirstOrDefaultAsync()
-        {
-            return Query().FirstOrDefaultAsync();
-        }
-
-        public virtual TEntity FirstOrDefault(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query().FirstOrDefault(predicate);
-        }
-
-        public virtual Task<TEntity> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query().FirstOrDefaultAsync(predicate);
-        }
-        #endregion
-
-        #region Insert
+        public virtual IQueryable<TEntity> Query(Expression<Func<TEntity, bool>> predicate) => Query().Where(predicate);
+        public virtual IQueryable<TEntity> QueryNoTracking(Expression<Func<TEntity, bool>> predicate) => QueryNoTracking().Where(predicate);
+        public virtual IEnumerable<TEntity> GetAll() => Query().ToList();
+        public virtual async Task<IEnumerable<TEntity>> GetAllAsync(CancellationToken cancellationToken = default) => await Query().ToListAsync(cancellationToken);
+        public virtual IEnumerable<TEntity> GetAll(Expression<Func<TEntity, bool>> predicate) => Query().Where(predicate).ToList();
+        public virtual async Task<IEnumerable<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default) => await Query().Where(predicate).ToListAsync(cancellationToken);
+        public abstract TEntity Get(object id);
+        public abstract ValueTask<TEntity> GetAsync(object id, CancellationToken cancellationToken = default);
+        public virtual TEntity FirstOrDefault() => Query().FirstOrDefault();
+        public virtual Task<TEntity> FirstOrDefaultAsync(CancellationToken cancellationToken = default) => Query().FirstOrDefaultAsync(cancellationToken);
+        public virtual TEntity FirstOrDefault(Expression<Func<TEntity, bool>> predicate) => Query().FirstOrDefault(predicate);
+        public virtual Task<TEntity> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default) => Query().FirstOrDefaultAsync(predicate, cancellationToken);
         public abstract TEntity Insert(TEntity entity);
-
-        public abstract Task<TEntity> InsertAsync(TEntity entity);
-
-        public abstract void Insert(List<TEntity> entities);
-
-        public abstract Task InsertAsync(List<TEntity> entities);
-        #endregion
-
-        #region 修改
+        public abstract Task<TEntity> InsertAsync(TEntity entity, CancellationToken cancellationToken = default);
+        public abstract void Insert(IEnumerable<TEntity> entities);
+        public abstract Task InsertAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
         public abstract TEntity Update(TEntity entity);
-
-        public virtual Task<TEntity> UpdateAsync(TEntity entity)
-        {
-            return Task.FromResult(Update(entity));
-        }
-        #endregion
-
-        #region Delete
+        public abstract void Update(IEnumerable<TEntity> entities);
         public abstract void Delete(TEntity entity);
-
-        public virtual Task DeleteAsync(TEntity entity)
-        {
-            Delete(entity);
-            return Task.CompletedTask;
-        }
-
-        public abstract void Delete(TPrimaryKey id);
-
-        public virtual Task DeleteAsync(TPrimaryKey id)
-        {
-            Delete(id);
-            return Task.CompletedTask;
-        }
-
+        public abstract void Delete(object id);
         public abstract void Delete(Expression<Func<TEntity, bool>> predicate);
+        public bool Any() => Query().Any();
+        public Task<bool> AnyAsync(CancellationToken cancellationToken = default) => Query().AnyAsync(cancellationToken);
+        public bool Any(Expression<Func<TEntity, bool>> predicate) => Query().Any(predicate);
+        public Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default) => Query().AnyAsync(predicate, cancellationToken);
+        public virtual int Count() => Query().Count();
+        public virtual Task<int> CountAsync(CancellationToken cancellationToken = default) => Query().CountAsync(cancellationToken);
+        public virtual int Count(Expression<Func<TEntity, bool>> predicate) => Query().Where(predicate).Count();
+        public virtual Task<int> CountAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default) => Query().CountAsync(predicate, cancellationToken);
+    }
 
-        public virtual Task DeleteAsync(Expression<Func<TEntity, bool>> predicate)
+
+    public abstract class RepositoryBase<TEntity> : IRepositoryBase<TEntity>
+        where TEntity : class
+    {
+        internal abstract DbContext DbContext { get; set; }
+        internal virtual DbSet<TEntity> Table => DbContext.Set<TEntity>();
+
+        public IQueryable<TEntity> Query() => Table.AsQueryable();
+        public IQueryable<TEntity> QueryNoTracking() => Table.AsQueryable().AsNoTracking();
+        public virtual TEntity Get(object id) => Table.Find(id);
+        public virtual ValueTask<TEntity> GetAsync(object id, CancellationToken cancellationToken = default) => Table.FindAsync(new object[] { id }, cancellationToken: cancellationToken);
+        public virtual IQueryable<TEntity> Query(Expression<Func<TEntity, bool>> predicate) => Query().Where(predicate);
+        public virtual IQueryable<TEntity> QueryNoTracking(Expression<Func<TEntity, bool>> predicate) => QueryNoTracking().Where(predicate);
+        public virtual IEnumerable<TEntity> GetAll() => Query().ToList();
+        public virtual async Task<IEnumerable<TEntity>> GetAllAsync(CancellationToken cancellationToken = default) => await Query().ToListAsync(cancellationToken);
+        public virtual IEnumerable<TEntity> GetAll(Expression<Func<TEntity, bool>> predicate) => Query().Where(predicate).ToList();
+        public virtual async Task<IEnumerable<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default) => await Query().Where(predicate).ToListAsync(cancellationToken);
+        public virtual TEntity FirstOrDefault() => Query().FirstOrDefault();
+        public virtual Task<TEntity> FirstOrDefaultAsync(CancellationToken cancellationToken = default) => Query().FirstOrDefaultAsync(cancellationToken);
+        public virtual TEntity FirstOrDefault(Expression<Func<TEntity, bool>> predicate) => Query().FirstOrDefault(predicate);
+        public virtual Task<TEntity> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default) => Query().FirstOrDefaultAsync(predicate, cancellationToken);
+
+        public virtual TEntity Insert(TEntity entity) => Table.Add(entity).Entity;
+        public virtual async Task<TEntity> InsertAsync(TEntity entity, CancellationToken cancellationToken = default)
         {
-            Delete(predicate);
-            return Task.CompletedTask;
+            var entityEntry = await Table.AddAsync(entity, cancellationToken);
+            return entityEntry.Entity;
         }
-        #endregion
-
-        #region HardDelete
-        public abstract void HardDelete(TEntity entity);
-
-        public virtual Task HardDeleteAsync(TEntity entity)
+        public virtual void Insert(IEnumerable<TEntity> entities) => Table.AddRange(entities);
+        public virtual Task InsertAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default) => Table.AddRangeAsync(entities, cancellationToken);
+        public virtual TEntity Update(TEntity entity)
         {
-            HardDelete(entity);
-            return Task.CompletedTask;
+            DbContext.Attach(entity);
+            DbContext.Update(entity);
+            return entity;
         }
-
-        public abstract void HardDelete(TPrimaryKey id);
-
-        public virtual Task HardDeleteAsync(TPrimaryKey id)
+        public virtual void Update(IEnumerable<TEntity> entities) => DbContext.UpdateRange(entities);
+        public virtual void Delete(TEntity entity) => Table.Remove(entity);
+        public virtual void Delete(object id)
         {
-            HardDelete(id);
-            return Task.CompletedTask;
+            var entity = Get(id);
+            if (entity != null)
+                Delete(entity);
         }
-
-        public abstract void HardDelete(Expression<Func<TEntity, bool>> predicate);
-
-        public virtual Task HardDeleteAsync(Expression<Func<TEntity, bool>> predicate)
-        {
-            HardDelete(predicate);
-            return Task.CompletedTask;
-        }
-        #endregion
-
-        #region Aggregate
-        public bool Any(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query().Any(predicate);
-        }
-
-        public Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query().AnyAsync(predicate);
-        }
-
-        public virtual int Count()
-        {
-            return Query().Count();
-        }
-
-        public virtual Task<int> CountAsync()
-        {
-            return Query().CountAsync();
-        }
-
-        public virtual int Count(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query().Where(predicate).Count();
-        }
-
-        public virtual Task<int> CountAsync(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query().CountAsync(predicate);
-        }
-
-        public virtual long LongCount()
-        {
-            return Query().LongCount();
-        }
-
-        public virtual Task<long> LongCountAsync()
-        {
-            return Query().LongCountAsync();
-        }
-
-        public virtual long LongCount(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query().Where(predicate).LongCount();
-        }
-
-        public virtual Task<long> LongCountAsync(Expression<Func<TEntity, bool>> predicate)
-        {
-            return Query().LongCountAsync(predicate);
-        }
-
-        protected static Expression<Func<TEntity, bool>> CreateEqualityExpressionForId(TPrimaryKey id)
-        {
-            var lambdaParam = Expression.Parameter(typeof(TEntity));
-
-            var lambdaBody = Expression.Equal(
-                Expression.PropertyOrField(lambdaParam, "Id"),
-                Expression.Constant(id, typeof(TPrimaryKey))
-            );
-
-            return Expression.Lambda<Func<TEntity, bool>>(lambdaBody, lambdaParam);
-        }
-        #endregion
+        public virtual void Delete(Expression<Func<TEntity, bool>> predicate) => Table.RemoveRange(Table.Where(predicate));
+        public bool Any() => Query().Any();
+        public Task<bool> AnyAsync(CancellationToken cancellationToken = default) => Query().AnyAsync(cancellationToken);
+        public bool Any(Expression<Func<TEntity, bool>> predicate) => Query().Any(predicate);
+        public Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default) => Query().AnyAsync(predicate, cancellationToken);
+        public virtual int Count() => Query().Count();
+        public virtual Task<int> CountAsync(CancellationToken cancellationToken = default) => Query().CountAsync(cancellationToken);
+        public virtual int Count(Expression<Func<TEntity, bool>> predicate) => Query().Where(predicate).Count();
+        public virtual Task<int> CountAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default) => Query().CountAsync(predicate, cancellationToken);
     }
 }

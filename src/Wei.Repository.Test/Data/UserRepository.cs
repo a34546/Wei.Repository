@@ -7,7 +7,7 @@ namespace Wei.Repository.Test
 {
     public class UserRepository : Repository<User>, IUserRepository
     {
-        public UserRepository(DbContext dbDbContext) : base(dbDbContext)
+        public UserRepository(DbContextFactory dbContextFactory) : base(dbContextFactory)
         {
         }
 
