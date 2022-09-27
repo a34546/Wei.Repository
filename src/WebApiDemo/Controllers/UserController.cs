@@ -10,7 +10,7 @@ namespace WebApiDemo.Controllers
     {
         // 泛型仓储
         // 多个DbContext时，如果不传入指定DbContext，默认使用第一个注入的DbContext
-        private readonly IRepository<UserDbContext, User> _repository;
+        private readonly IRepository<UserReadonlyDbContext, User> _repository;
 
         //自定义仓储
         private readonly IUserRepository _userRepository;
@@ -20,7 +20,7 @@ namespace WebApiDemo.Controllers
         private readonly IUnitOfWork<UserDbContext> _unitOfWork;
 
 
-        public UserController(IRepository<UserDbContext, User> repository,
+        public UserController(IRepository<UserReadonlyDbContext, User> repository,
             IUserRepository userRepository,
             IUnitOfWork<UserDbContext> unitOfWork)
         {
@@ -41,7 +41,7 @@ namespace WebApiDemo.Controllers
             return _repository.GetAllAsync(cancellationToken);
         }
 
-        [HttpGet("InsertAsync")]
+        [HttpPost]
         public async Task<User> InsertAsync(string name, CancellationToken cancellationToken)
         {
             var entity = await _userRepository.InsertAsync(new User { Name = name }, cancellationToken);
@@ -49,7 +49,7 @@ namespace WebApiDemo.Controllers
             return entity;
         }
 
-        [HttpGet("Update/{id}")]
+        [HttpPut("Update/{id}")]
         public User Update(string id, string name)
         {
             var entity = _userRepository.Get(id);

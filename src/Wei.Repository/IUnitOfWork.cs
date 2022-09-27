@@ -9,9 +9,10 @@ using System.Threading.Tasks;
 
 namespace Wei.Repository
 {
-    public interface IUnitOfWork: IDisposable
+    public interface IUnitOfWork : IDisposable
     {
-
+        public DbContext DbContext { get; }
+        IDbConnection GetConnection();
         int SaveChanges();
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
@@ -32,21 +33,25 @@ namespace Wei.Repository
         /// </summary>
         /// <typeparam name="TEntity"></typeparam>
         /// <param name="sql">sql语句</param>
-        /// <param name="param">参数</param>
+        /// <param name="param">参数化</param>
         /// <param name="trans"></param>
         /// <returns></returns>
         Task<int> ExecuteAsync(string sql, object param, IDbContextTransaction trans = null);
 
+        /// <summary>
+        /// 开启事务
+        /// </summary>
+        /// <returns></returns>
         IDbContextTransaction BeginTransaction();
         public IDbContextTransaction BeginTransaction(IsolationLevel isolationLevel);
         public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
         public Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default);
-        IDbConnection GetConnection();
     }
 
     public interface IUnitOfWork<TDbContext> : IDisposable where TDbContext : DbContext
     {
-
+        public DbContext DbContext { get; }
+        IDbConnection GetConnection();
         int SaveChanges();
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
@@ -72,10 +77,13 @@ namespace Wei.Repository
         /// <returns></returns>
         Task<int> ExecuteAsync(string sql, object param, IDbContextTransaction trans = null);
 
+        /// <summary>
+        /// 开启事务
+        /// </summary>
+        /// <returns></returns>
         IDbContextTransaction BeginTransaction();
         public IDbContextTransaction BeginTransaction(IsolationLevel isolationLevel);
         public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
         public Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default);
-        IDbConnection GetConnection();
     }
 }

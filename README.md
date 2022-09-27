@@ -1,283 +1,215 @@
 # Wei.Repository
-基于EFCore3.0+Dapper 封装Repository，实现UnitOfWork,提供基本的CURD操作，可直接注入泛型Repository，也可以继承Repository，重写CURD操作
+基于.Net6平台,EFCore+Dapper 封装Repository，实现UnitOfWork,提供基本的CURD操作，支持多数据，多DbContext
 
-支持Mysql MsSqlServer
 
 ## 快速开始
 
 > Nuget引用包：Wei.Repository
 
-1. 实体对象需要继承Entity
+1. 定义实体类
 ```cs
-public class User : Entity
+ public class User
 {
-public string UserName { get; set; }
-public string Password { get; set; }
-public string Mobile { get; set; }
+    // 字段名为Id时，可省略主键标记
+    //[Key]  
+    public string Id { get; set; }
+    public string Name { get; set; }
 }
 ```
-2. 【可选】继承BaseDbContext,如果不需要DbContext，可以忽略该步骤
+2. 自定义DbContext,需要继承BaseDbContext
 ```cs
-public class DemoDbContext : DbContext
+public class UserDbContext : BaseDbContext
 {
-    public DemoDbContext(DbContextOptions options) : base(options)
+    public DemoDbContext(DbContextOptions<UserDbContext> options) 
+    : base(options)
     {
     }
+    public DbSet<User> User { get; set; }
 }
 ```
-3. 注入服务,修改Startup.cs,添加AddRepository
+3. 注入服务,添加Repository组件
 ```cs
-public void ConfigureServices(IServiceCollection services)
-{
-    ...
-    services.AddRepository<DemoDbContext>(ops =>
-    {
-	ops.UseMySql("server = 127.0.0.1;database=demo;uid=root;password=root;");
-    });
-    //services.AddRepository(ops =>
-    //{
-    //    ops.UseMySql("server = 127.0.0.1;database=demo;uid=root;password=root;");
-    //});
-    services.AddControllers();
-    ...
-}
+builder.Services.AddRepository<UserDbContext>(ops => ops.UseSqlite("Data Source=user.db"));
+// Mysql,SqlServer 可以安装驱动后自行测试，demo暂只用sqllite测试
+//builder.Services.AddRepository<UserDbContext>(ops => ops.UseMysql("xxx"));
+//builder.Services.AddRepository<UserDbContext>(ops =>ops.UseSqlServer("xxx"));
 ```
-4.  【可选】如果不用泛型Repository注入,可以自定义Repository,需要继承Repository,IRepository,可以重写基类CURD方法
+
+4.  【可选】自定义Repository,实现自己的业务逻辑,如果只是简单的crud,可以直接用泛型Repository
 ```cs
-public class UserRepository : Repository<User>, IUserRepository
+// 如果只有一个DbContext,可以不用指定UserDbContext类型
+// public class UserRepository : Repository<User>, IUserRepository
+
+public class UserRepository : Repository<UserDbContext, User>, IUserRepository
 {
-    public UserRepository(DbContext dbDbContext) : base(dbDbContext)
+    public UserRepository(DbContextFactory dbContextFactory) : base(dbContextFactory)
     {
-    }    
-    public override Task<User> FirstOrDefaultAsync()
+    }
+
+    // 重写基类新增方法，实现自己的业务逻辑
+    public override Task<User> InsertAsync(User entity, CancellationToken cancellationToken = default)
     {
-        return default;
+        entity.Id = Guid.NewGuid().ToString();
+        return base.InsertAsync(entity, cancellationToken);
     }
 }
 
-public interface IUserRepository : IRepository<User>
+public interface IUserRepository : IRepository<UserDbContext, User>
 {
 }
 ```
-4.  在Controller中使用
+
+5.  在Controller中使用
 ```cs
 public class UserController : ControllerBase
 {
-    /// <summary>
-    /// 泛型注入
-    /// </summary>
-    private readonly IRepository<User> _repository;
-    
-    /// <summary>
-    /// 自定义UserRepository
-    /// </summary>
+
+    //自定义仓储
     private readonly IUserRepository _userRepository;
-    public UserController(IRepository<User> repository,
-        IUserRepository userRepository)
+
+    // 工作单元,
+    // 如果不传入指定DbContext，默认使用第一个注入的DbContext
+    private readonly IUnitOfWork<UserDbContext> _unitOfWork;
+
+
+    public UserController(
+        IUserRepository userRepository,
+        IUnitOfWork<UserDbContext> unitOfWork)
     {
-        _repository = repository;
         _userRepository = userRepository;
+        _unitOfWork = unitOfWork;
     }
     
-    [HttpGet]
-    public async Task<User> Get()
+    [HttpPost]
+    public async Task<User> InsertAsync(string name, CancellationToken cancellationToken)
     {
-        //泛型注入不会调用重写的方法
-        return await _repository.FirstOrDefaultAsync();
-    
-        //会调用重写的FirstOrDefaultAsync()
-        //return await _userRepository.FirstOrDefaultAsync();
+        var entity = await _userRepository.InsertAsync(new User { Name = name }, cancellationToken);
+        _unitOfWork.SaveChanges();
+        return entity;
     }
 }
 ```
 
 ## 详细介绍
-**1. ITrack接口**
+
+**1. 泛型IRepository接口**
 ```cs
-public interface ITrack
+    #region Query
+    // 查询
+    IQueryable<TEntity> Query();
+    IQueryable<TEntity> Query(Expression<Func<TEntity, bool>> predicate);
+    IQueryable<TEntity> QueryNoTracking();
+    IQueryable<TEntity> QueryNoTracking(Expression<Func<TEntity, bool>> predicate);
+    // 根据主键获取(支持复合主键)
+    TEntity Get(params object[] id);
+    ValueTask<TEntity> GetAsync(params object[] id);
+    ValueTask<TEntity> GetAsync(object[] ids, CancellationToken cancellationToken);
+    // 获取所有
+    IEnumerable<TEntity> GetAll();
+    Task<IEnumerable<TEntity>> GetAllAsync(CancellationToken cancellationToken = default);
+    IEnumerable<TEntity> GetAll(Expression<Func<TEntity, bool>> predicate);
+    Task<IEnumerable<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
+    // 获取第一个或默认值
+    TEntity FirstOrDefault();
+    Task<TEntity> FirstOrDefaultAsync(CancellationToken cancellationToken = default);
+    TEntity FirstOrDefault(Expression<Func<TEntity, bool>> predicate);
+    Task<TEntity> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
+    #endregion
+
+    #region Insert
+    // 新增
+    TEntity Insert(TEntity entity);
+    Task<TEntity> InsertAsync(TEntity entity, CancellationToken cancellationToken = default);
+    // 批量新增
+    void Insert(IEnumerable<TEntity> entities);
+    Task InsertAsync(IEnumerable<TEntity> entities, CancellationToken cancellationToken = default);
+    #endregion Insert
+
+    #region Update
+    // 更新
+    TEntity Update(TEntity entity);
+    // 批量更新
+    void Update(IEnumerable<TEntity> entities);
+    #endregion Update
+
+    #region Delete
+    // 删除
+    void Delete(TEntity entity);
+    // 根据主键(支持复合主键)删除
+    void Delete(params object[] id);
+    // 根据表达式条件批量删除
+    void Delete(Expression<Func<TEntity, bool>> predicate);
+    #endregion
+
+    #region Aggregate
+    bool Any();
+    Task<bool> AnyAsync(CancellationToken cancellationToken = default);
+    bool Any(Expression<Func<TEntity, bool>> predicate);
+    Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
+    int Count();
+    Task<int> CountAsync(CancellationToken cancellationToken = default);
+    int Count(Expression<Func<TEntity, bool>> predicate);
+    Task<int> CountAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
+    #endregion
+```
+
+**2. IUnitOfWork 工作单元接口**
+```cs
+    // 获取 DbContext
+    public DbContext DbContext { get; }
+    IDbConnection GetConnection();
+    // 工作单元 提交
+    int SaveChanges();
+    Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    // Dapper 封装
+    Task<IEnumerable<TEntity>> QueryAsync<TEntity>(string sql, object param = null, IDbContextTransaction trans = null) where TEntity : class;
+    Task<int> ExecuteAsync(string sql, object param, IDbContextTransaction trans = null);
+    // 开启事务
+    IDbContextTransaction BeginTransaction();
+    public IDbContextTransaction BeginTransaction(IsolationLevel isolationLevel);
+    public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
+    public Task<IDbContextTransaction> BeginTransactionAsync(IsolationLevel isolationLevel, CancellationToken cancellationToken = default);
+```
+
+**3. Dapper事务**
+```cs
+public async Task InsertWithTransaction(User user1, User user2)
 {
-
-    /// <summary>
-    /// 创建时间
-    /// </summary>
-    DateTime CreateTime { get; set; }    
-    /// <summary>
-    /// 更新时间
-    /// </summary>
-    DateTime? UpdateTime { get; set; }    
-    /// <summary>
-    /// 是否删除
-    /// </summary>
-    bool IsDelete { get; set; }    
-    /// <summary>
-    /// 删除时间
-    /// </summary>
-    DateTime? DeleteTime { get; set; }
-}
-```
-实体类继承Entity,Entity实现ITrack接口，用于记录CURD操作时间，
-- 对实体进行Insert操作会自动记录CreateTime，
-- 进行Update操作会自动记录UpdateTime，
-- 进行Delete操作时，不会真正删除，会修改IsDelete字段，标记为1，并记录DeleteTime，如需彻底删除需要调用HardDelete方法
-
-**2. IRepository接口**
-```cs
- #region Query
-
-/// <summary>
-/// 查询
-/// </summary>
-IQueryable<TEntity> Query();
-IQueryable<TEntity> Query(Expression<Func<TEntity, bool>> predicate);
-
-/// <summary>
-/// 查询不跟踪实体变化
-/// </summary>
-IQueryable<TEntity> QueryNoTracking();
-IQueryable<TEntity> QueryNoTracking(Expression<Func<TEntity, bool>> predicate);
-
-/// <summary>
-/// 根据主键获取
-/// </summary>
-TEntity Get(TPrimaryKey id);
-Task<TEntity> GetAsync(TPrimaryKey id);
-
-/// <summary>
-/// 获取所有,默认过滤IsDelete=1的
-/// </summary>
-List<TEntity> GetAll();
-Task<List<TEntity>> GetAllAsync();
-List<TEntity> GetAll(Expression<Func<TEntity, bool>> predicate);
-Task<List<TEntity>> GetAllAsync(Expression<Func<TEntity, bool>> predicate);
-
-/// <summary>
-/// 获取第一个
-/// </summary>
-TEntity FirstOrDefault();
-Task<TEntity> FirstOrDefaultAsync();
-TEntity FirstOrDefault(Expression<Func<TEntity, bool>> predicate);
-Task<TEntity> FirstOrDefaultAsync(Expression<Func<TEntity, bool>> predicate);
-
-#endregion
-
-#region Insert
-
-/// <summary>
-/// 新增
-/// </summary>
-TEntity Insert(TEntity entity);
-Task<TEntity> InsertAsync(TEntity entity);
-
-/// <summary>
-/// 批量新增
-/// </summary>
-/// <param name="entities"></param>
-void Insert(List<TEntity> entities);
-Task InsertAsync(List<TEntity> entities);
-
-#endregion Insert
-
-#region Update
-
-/// <summary>
-/// 更新
-/// </summary>
-TEntity Update(TEntity entity);
-Task<TEntity> UpdateAsync(TEntity entity);
-
-#endregion Update
-
-#region Delete
-
-/// <summary>
-/// 逻辑删除，标记IsDelete = 1
-/// </summary>
-/// <param name="entity"></param>
-void Delete(TEntity entity);
-Task DeleteAsync(TEntity entity);
-void Delete(TPrimaryKey id);
-Task DeleteAsync(TPrimaryKey id);
-void Delete(Expression<Func<TEntity, bool>> predicate);
-Task DeleteAsync(Expression<Func<TEntity, bool>> predicate);
-
-#endregion
-
-#region HardDelete
-
-/// <summary>
-/// 物理删除，从数据库中移除
-/// </summary>
-/// <param name="entity"></param>
-void HardDelete(TEntity entity);
-Task HardDeleteAsync(TEntity entity);
-void HardDelete(TPrimaryKey id);
-Task HardDeleteAsync(TPrimaryKey id);
-void HardDelete(Expression<Func<TEntity, bool>> predicate);
-Task HardDeleteAsync(Expression<Func<TEntity, bool>> predicate);
-
-#endregion
-
-#region Aggregate
-
-/// <summary>
-/// 聚合操作
-/// </summary>
-bool Any(Expression<Func<TEntity, bool>> predicate);
-Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate);
-int Count();
-Task<int> CountAsync();
-int Count(Expression<Func<TEntity, bool>> predicate);
-Task<int> CountAsync(Expression<Func<TEntity, bool>> predicate);
-long LongCount();
-Task<long> LongCountAsync();
-long LongCount(Expression<Func<TEntity, bool>> predicate);
-Task<long> LongCountAsync(Expression<Func<TEntity, bool>> predicate);
-
-#endregion
-```
-**3. EF工作单元事务**
-```cs
-await _userRepository.InsertAsync(user1);
-await _userRepository.InsertAsync(user2);
-await _unitOfWork.SaveChangesAsync();
-```
-**4. Dapper事务**
-```cs
- using (var tran = _unitOfWork.BeginTransaction())
-{
+    using var tran = _unitOfWork.BeginTransaction();
     try
     {
-        await _unitOfWork.ExecuteAsync("INSERT INTO `user` (`CreateTime`, `IsDelete`, `UserName`) VALUES (now(), 0, @UserName);", user1, tran);
-        await _unitOfWork.ExecuteAsync("INSERT INTO `user` (`CreateTime`, `IsDelete`, `UserName`) VALUES (now(), 0, @UserName);", user2, tran);
-        throw new Exception();
+        await _unitOfWork.ExecuteAsync("INSERT INTO User (Id,Name) VALUES ('1','张三'", user1, tran);
+        await _unitOfWork.ExecuteAsync("INSERT INTO User (Id,Name) VALUES ('2','李四'", user2, tran);
+        // 提交事务
         tran.Commit();
     }
     catch (Exception e)
     {
+        // 异常回归事务
         tran.Rollback();
     }
 }
 ```
-**5. EF+Dapper混合事务**
+**4. EF+Dapper混合事务**
 ```cs
-using (var tran = _unitOfWork.BeginTransaction())
+public async Task InsertWithTransaction(User user1, User user2)
 {
+    using var tran = _unitOfWork.BeginTransaction();
     try
     {
         await _userRepository.InsertAsync(user1);
-        await _unitOfWork.ExecuteAsync("INSERT INTO `user` (`CreateTime`, `IsDelete`, `UserName`) VALUES (now(), 0, @UserName);", user2, tran);
-        throw new Exception();
+        await _unitOfWork.SaveChangesAsync();
+        await _unitOfWork.ExecuteAsync("INSERT INTO User (Id,Name) VALUES ('2','李四'", user2, tran);
+        // 提交事务
         tran.Commit();
     }
     catch (Exception e)
     {
+        // 异常回归事务
         tran.Rollback();
     }
 }
 ```
-**6. 获GetConnection,使用更多dapper扩展的方法**
-```cs
-await _unitOfWork.GetConnection().QueryAsync("select * from user");
-```
----
-> 本项目有参考chimp
+**5.其他**
+- 支持多数据库连接，多个DbContext,具体请查看Demo
+

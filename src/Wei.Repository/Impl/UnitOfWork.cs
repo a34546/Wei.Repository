@@ -16,7 +16,7 @@ namespace Wei.Repository
             DbContext = dbContextFactory.GetFirstOrDefaultDbContext();
         }
 
-        public override DbContext DbContext { get; protected set; }
+        public override DbContext DbContext { get; }
     }
 
     public class UnitOfWork<TDbContext> : UnitOfWorkBase, IUnitOfWork<TDbContext> where TDbContext : DbContext
@@ -26,7 +26,7 @@ namespace Wei.Repository
             DbContext = dbContextFactory.GetDbContext<TDbContext>();
         }
 
-        public override DbContext DbContext { get; protected set; }
+        public override DbContext DbContext { get; }
 
     }
 
@@ -34,7 +34,7 @@ namespace Wei.Repository
     {
         private bool _disposed = false;
 
-        public abstract DbContext DbContext { get; protected set; }
+        public abstract DbContext DbContext { get; }
 
         public int SaveChanges()
         {

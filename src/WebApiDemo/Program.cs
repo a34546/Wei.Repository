@@ -5,33 +5,16 @@ using Wei.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 多DbContext使用场景
+builder.Services.AddRepository<BookDbContext>(ops => ops.UseSqlite("Data Source=book.db"));
+// 读写分离场景，也可以建两个DbContext来实现
+builder.Services.AddRepository<UserDbContext>(ops => ops.UseSqlite("Data Source=user.db"));
+builder.Services.AddRepository<UserReadonlyDbContext>(ops => ops.UseSqlite("Data Source=user.db"));
+// 复合主键使用场景
+builder.Services.AddRepository<UserBookDbContext>(ops => ops.UseSqlite("Data Source=userbook.db"));
 
-builder.Services.AddRepository<BookDbContext>(ops =>
-{
-    var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "book.db");
-    if (!File.Exists(dbPath)) File.Create(dbPath);
-
-    ops.UseSqlite("Data Source=book.db");
-});
-
-builder.Services.AddRepository<UserDbContext>(ops =>
-{
-    var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user.db");
-    if (!File.Exists(dbPath)) File.Create(dbPath);
-
-    ops.UseSqlite("Data Source=user.db");
-});
-
-//builder.Services.AddRepository<UserDbContext>(ops =>
-//{
-//    ops.UseMysql("xxx");
-//});
-
-//builder.Services.AddRepository<UserDbContext>(ops =>
-//{
-//    ops.UseSqlServer("xxx");
-//});
+// Mysql,SqlServer 可以安装驱动后自行测试，demo暂只用sqllite测试
+//builder.Services.AddRepository<UserDbContext>(ops => ops.UseMysql("xxx"));
+//builder.Services.AddRepository<UserDbContext>(ops =>ops.UseSqlServer("xxx"));
 
 builder.Services.AddControllers();
 
@@ -40,6 +23,7 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// 初始化sqllite数据库
 app.InitSeedData();
 
 if (app.Environment.IsDevelopment())

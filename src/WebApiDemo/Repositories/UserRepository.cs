@@ -20,7 +20,6 @@ namespace WebApiDemo
             entity.Name += $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}";
             return base.Update(entity);
         }
-
     }
 
     public interface IUserRepository : IRepository<UserDbContext, User>

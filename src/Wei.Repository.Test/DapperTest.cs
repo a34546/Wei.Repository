@@ -2,7 +2,7 @@ using Dapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System;
-using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Xunit;
@@ -10,158 +10,136 @@ using Xunit.Extensions.Ordering;
 
 namespace Wei.Repository.Test
 {
-    public class DapperTest
+    public class DapperTest : TestBase
     {
-        readonly ServiceProvider _serviceProvider;
-        readonly IUnitOfWork _unitOfWork;
-
-        /// <summary>
-        /// 自定义AppService
-        /// </summary>
-        readonly IUserRepository _userRepository;
-
-        /// <summary>
-        /// 泛型AppService
-        /// </summary>
-        readonly IRepository<User> _repository;
-        public DapperTest()
-        {
-            var services = new ServiceCollection();
-            services.AddRepository(opt =>
-            {
-                opt.UseMySql("server = 127.0.0.1;database=demo;uid=root;password=root;");
-            });
-            _serviceProvider = services.BuildServiceProvider();
-            _unitOfWork = _serviceProvider.GetRequiredService<IUnitOfWork>();
-
-            _userRepository = _serviceProvider.GetRequiredService<IUserRepository>();
-            _repository = _serviceProvider.GetRequiredService<IRepository<User>>();
-            InitUserTable();
-        }
-
-        private void InitUserTable()
-        {
-            using var scope = _serviceProvider.CreateScope();
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            using var conn = unitOfWork.GetConnection();
-            var userTable = conn.QueryFirstOrDefault<string>("SHOW TABLES LIKE 'User';");
-            if (!"User".Equals(userTable, StringComparison.CurrentCultureIgnoreCase))
-            {
-                conn.Execute(@"
-                            CREATE TABLE `user` (
-                              `Id` int(11) NOT NULL AUTO_INCREMENT,
-                              `CreateTime` datetime(6) NOT NULL,
-                              `UpdateTime` datetime(6) DEFAULT NULL,
-                              `IsDelete` tinyint(1) NOT NULL,
-                              `DeleteTime` datetime(6) DEFAULT NULL,
-                              `UserName` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-                              `Password` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-                              `Mobile` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
-                              PRIMARY KEY (`Id`)
-                            ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-                    ");
-            }
-        }
-
-        private void InitUsers()
-        {
-            if (_repository.Count(x => x.IsDelete == false) <= 10)
-            {
-                var users = new List<User>();
-                for (int i = 0; i < 20; i++)
-                {
-                    users.Add(new User
-                    {
-                        UserName = "InitUsers_" + i
-                    });
-                }
-                _repository.Insert(users);
-                _unitOfWork.SaveChanges();
-            }
-        }
-
 
         [Fact, Order(1)]
         public async Task DapperInsert()
         {
-            var user = new User
+            var id = Guid.NewGuid().ToString();
+            var test = new Test
             {
-                UserName = "DapperInsert"
+                Id = id,
+                Name = nameof(DapperInsert)
             };
 
-            await _unitOfWork.ExecuteAsync("INSERT INTO `user` (`CreateTime`, `IsDelete`, `UserName`) VALUES (now(), 0, @UserName);", user);
+            await UnitOfWork.ExecuteAsync("INSERT INTO Test (Id,Name) VALUES (@Id,@Name);", test);
 
-            var users = await _unitOfWork.QueryAsync<User>("select * from user where UserName =@UserName", user);
-            Assert.True(users.First().Id > 0);
-            Assert.True(user.UserName == users.First().UserName);
+            var users = await UnitOfWork.QueryAsync<Test>("select * from Test where Id =@Id", new { Id = id });
+            Assert.NotNull(users);
+            Assert.Single(users);
+            Assert.True(users.First().Name == nameof(DapperInsert));
         }
 
         [Fact, Order(2)]
         public async Task QueryAsync()
         {
-            InitUsers();
-            var users = await _unitOfWork.QueryAsync<User>("select * from user;");
+            var users = await UnitOfWork.QueryAsync<Test>("select * from Test;");
             Assert.True(users.Any());
         }
 
-        [Fact, Order(2)]
-        public async Task QueryPagedAsync()
-        {
-            InitUsers();
-            var pageResult = await _unitOfWork.QueryPagedAsync<User>(1, 10, "select * from user where isDelete = @isDelete order by id desc", new { isDelete = 0 });
-            Assert.NotNull(pageResult);
-            Assert.True(pageResult.Total >= 10);
-        }
-
         [Fact, Order(3)]
-        public async Task Transaction()
+        public async Task Transaction_Commit()
         {
-            var user1 = new User { UserName = "Transaction_1" };
-            var user2 = new User { UserName = "Transaction_2" };
-            using (var tran = _unitOfWork.BeginTransaction())
+            var test1 = new Test { Id = Guid.NewGuid().ToString(), Name = "Transaction_Commit1" };
+            var test2 = new Test { Id = Guid.NewGuid().ToString(), Name = "Transaction_Commit2" };
+            using (var tran = UnitOfWork.BeginTransaction())
             {
                 try
                 {
-                    await _unitOfWork.ExecuteAsync("INSERT INTO `user` (`CreateTime`, `IsDelete`, `UserName`) VALUES (now(), 0, @UserName);", user1, tran);
-                    await _unitOfWork.ExecuteAsync("INSERT INTO `user` (`CreateTime`, `IsDelete`, `UserName`) VALUES (now(), 0, @UserName);", user2, tran);
-                    throw new Exception();
+                    await UnitOfWork.ExecuteAsync("INSERT INTO Test (Id,Name) VALUES (@Id,@Name);", test1, tran);
+                    await UnitOfWork.ExecuteAsync("INSERT INTO Test (Id,Name) VALUES (@Id,@Name);", test2, tran);
                     tran.Commit();
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     tran.Rollback();
                 }
             }
-            var findUser1 = _unitOfWork.GetConnection().QueryFirstOrDefault<User>("select * from user where UserName =@UserName", user1);
-            var findUser2 = _unitOfWork.GetConnection().QueryFirstOrDefault<User>("select * from user where UserName =@UserName", user2);
-            Assert.Null(findUser1);
-            Assert.Null(findUser2);
+            var res1 = UnitOfWork.GetConnection().QueryFirstOrDefault<Test>("select * from Test where Id =@Id", test1);
+            var res2 = UnitOfWork.GetConnection().QueryFirstOrDefault<Test>("select * from Test where Id =@Id", test2);
+            Assert.NotNull(res1);
+            Assert.NotNull(res2);
+            Assert.Equal(test1.Id, res1.Id);
+            Assert.Equal(test2.Id, res2.Id);
         }
 
-        [Fact, Order(3)]
-        public async Task HybridTransaction()
+        [Fact, Order(4)]
+        public async Task Transaction_Rollback()
         {
-            var user1 = new User { UserName = "HybridTransaction_1" };
-            var user2 = new User { UserName = "HybridTransaction_2" };
-            using (var tran = _unitOfWork.BeginTransaction())
+            var test1 = new Test { Id = Guid.NewGuid().ToString(), Name = "Transaction_Rollback1" };
+            var test2 = new Test { Id = Guid.NewGuid().ToString(), Name = "Transaction_Rollback2" };
+            using (var tran = UnitOfWork.BeginTransaction())
             {
                 try
                 {
-                    await _userRepository.InsertAsync(user1);
-                    await _unitOfWork.ExecuteAsync("INSERT INTO `user` (`CreateTime`, `IsDelete`, `UserName`) VALUES (now(), 0, @UserName);", user2, tran);
-                    throw new Exception();
+                    await UnitOfWork.ExecuteAsync("INSERT INTO Test (Id,Name) VALUES (@Id,@Name);", test1, tran);
+                    await UnitOfWork.ExecuteAsync("INSERT INTO Test (Id,Name) VALUES (@Id,@Name);", test2, tran);
+                    throw new Exception("测试回滚");
                     tran.Commit();
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     tran.Rollback();
                 }
             }
-            var findUser1 = _unitOfWork.GetConnection().QueryFirstOrDefault<User>("select * from user where UserName =@UserName", user1);
-            var findUser2 = _unitOfWork.GetConnection().QueryFirstOrDefault<User>("select * from user where UserName =@UserName", user2);
-            Assert.Null(findUser1);
-            Assert.Null(findUser2);
+            var res1 = UnitOfWork.GetConnection().QueryFirstOrDefault<Test>("select * from Test where Id =@Id", test1);
+            var res2 = UnitOfWork.GetConnection().QueryFirstOrDefault<Test>("select * from Test where Id =@Id", test2);
+            Assert.Null(res1);
+            Assert.Null(res2);
         }
 
+        [Fact, Order(5)]
+        public async Task HybridTransaction_Commit()
+        {
+            var test1 = new Test { Id = Guid.NewGuid().ToString(), Name = "HybridTransaction_1" };
+            var test2 = new Test { Id = Guid.NewGuid().ToString(), Name = "HybridTransaction_2" };
+            using (var tran = UnitOfWork.BeginTransaction())
+            {
+                try
+                {
+                    await TestRepository.InsertAsync(test1);
+                    await UnitOfWork.SaveChangesAsync();
+                    await UnitOfWork.ExecuteAsync("INSERT INTO Test (Id,Name) VALUES (@Id,@Name);", test2, tran);
+                    tran.Commit();
+                }
+                catch (Exception)
+                {
+                    tran.Rollback();
+                }
+            }
+            var res1 = UnitOfWork.GetConnection().QueryFirstOrDefault<Test>("select * from Test where Id =@Id", test1);
+            var res2 = UnitOfWork.GetConnection().QueryFirstOrDefault<Test>("select * from Test where Id =@Id", test2);
+            Assert.NotNull(res1);
+            Assert.NotNull(res2);
+            Assert.Equal(test1.Id, res1.Id);
+            Assert.Equal(test2.Id, res2.Id);
+        }
+
+        [Fact, Order(6)]
+        public async Task HybridTransaction_Rollback()
+        {
+            var test1 = new Test { Id = Guid.NewGuid().ToString(), Name = "HybridTransaction_Rollback1" };
+            var test2 = new Test { Id = Guid.NewGuid().ToString(), Name = "HybridTransaction_Rollback2" };
+            using (var tran = UnitOfWork.BeginTransaction())
+            {
+                try
+                {
+                    await TestRepository.InsertAsync(test1);
+                    await UnitOfWork.SaveChangesAsync();
+                    await UnitOfWork.ExecuteAsync("INSERT INTO Test (Id,Name) VALUES (@Id,@Name);", test2, tran);
+                    throw new Exception("测试回滚");
+                    tran.Commit();
+                }
+                catch (Exception)
+                {
+                    tran.Rollback();
+                }
+            }
+            var res1 = UnitOfWork.GetConnection().QueryFirstOrDefault<Test>("select * from Test where Id =@Id", test1);
+            var res2 = UnitOfWork.GetConnection().QueryFirstOrDefault<Test>("select * from Test where Id =@Id", test2);
+            Assert.Null(res1);
+            Assert.Null(res2);
+        }
     }
 }

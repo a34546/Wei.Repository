@@ -9,12 +9,6 @@ namespace Wei.Repository
 {
     public static class TypeExtensions
     {
-
-        public static bool SafeAny<T>(this IEnumerable<T> data)
-        {
-            return data != null && data.Any();
-        }
-
         public static List<Assembly> GetCurrentPathAssembly(this AppDomain domain)
         {
             var dlls = DependencyContext.Default.CompileLibraries

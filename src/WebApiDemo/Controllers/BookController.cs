@@ -41,7 +41,7 @@ namespace WebApiDemo.Controllers
             return _repository.GetAllAsync(cancellationToken);
         }
 
-        [HttpGet("InsertAsync")]
+        [HttpPost]
         public async Task<Book> InsertAsync(string name, CancellationToken cancellationToken)
         {
             var entity = await _bookRepository.InsertAsync(new Book { Name = name }, cancellationToken);
@@ -49,7 +49,7 @@ namespace WebApiDemo.Controllers
             return entity;
         }
 
-        [HttpGet("Update/{id}")]
+        [HttpPut("Update/{id}")]
         public Book Update(int id, string name)
         {
             var entity = _bookRepository.Get(id);

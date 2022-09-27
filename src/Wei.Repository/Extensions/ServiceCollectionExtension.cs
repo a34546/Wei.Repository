@@ -11,7 +11,6 @@ namespace Wei.Repository
 {
     public static class ServiceCollectionExtension
     {
-        private static bool isInit = false;
 
         public static IServiceCollection AddRepository<TDbContext>(this IServiceCollection services,
             Action<DbContextOptionsBuilder> options, ServiceLifetime repositoryLifetime = ServiceLifetime.Scoped) where TDbContext : BaseDbContext
@@ -24,18 +23,14 @@ namespace Wei.Repository
 
         private static IServiceCollection AddRepository(this IServiceCollection services, ServiceLifetime serviceLifetime)
         {
-            if (!isInit)
-            {
-                services.TryAddScoped<DbContextFactory>();
-                services.TryAddScoped(typeof(IUnitOfWork), typeof(UnitOfWork));
-                services.TryAddScoped(typeof(IUnitOfWork<>), typeof(UnitOfWork<>));
-                var assemblies = AppDomain.CurrentDomain.GetCurrentPathAssembly().Where(x => !(x.GetName().Name.Equals("Wei.Repository")));
-                services.AddRepository(assemblies, typeof(IRepository<>), serviceLifetime);
-                services.AddRepository(assemblies, typeof(IRepository<,>), serviceLifetime);
-                services.TryAdd(new ServiceDescriptor(typeof(IRepository<>), typeof(Repository<>), serviceLifetime));
-                services.TryAdd(new ServiceDescriptor(typeof(IRepository<,>), typeof(Repository<,>), serviceLifetime));
-                isInit = true;
-            }
+            services.TryAddScoped<DbContextFactory>();
+            services.TryAddScoped(typeof(IUnitOfWork), typeof(UnitOfWork));
+            services.TryAddScoped(typeof(IUnitOfWork<>), typeof(UnitOfWork<>));
+            var assemblies = AppDomain.CurrentDomain.GetCurrentPathAssembly().Where(x => !(x.GetName().Name.Equals("Wei.Repository")));
+            services.AddRepository(assemblies, typeof(IRepository<>), serviceLifetime);
+            services.AddRepository(assemblies, typeof(IRepository<,>), serviceLifetime);
+            services.TryAdd(new ServiceDescriptor(typeof(IRepository<>), typeof(Repository<>), serviceLifetime));
+            services.TryAdd(new ServiceDescriptor(typeof(IRepository<,>), typeof(Repository<,>), serviceLifetime));
             return services;
         }
         private static void AddRepository(this IServiceCollection services, IEnumerable<Assembly> assemblies, Type baseType, ServiceLifetime serviceLifetime)

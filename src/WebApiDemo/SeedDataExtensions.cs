@@ -9,10 +9,13 @@ namespace WebApiDemo
         {
             InitBookTable(app);
             InitUserTable(app);
+            InitUserBookTable(app);
         }
 
         private static void InitBookTable(IApplicationBuilder app)
         {
+            var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "book.db");
+            if (!File.Exists(dbPath)) File.Create(dbPath);
             using var scope = app.ApplicationServices.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork<BookDbContext>>();
             using var conn = unitOfWork.GetConnection();
@@ -30,6 +33,8 @@ namespace WebApiDemo
 
         private static void InitUserTable(IApplicationBuilder app)
         {
+            var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user.db");
+            if (!File.Exists(dbPath)) File.Create(dbPath);
             using var scope = app.ApplicationServices.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork<UserDbContext>>();
             using var conn = unitOfWork.GetConnection();
@@ -41,7 +46,28 @@ namespace WebApiDemo
 	                            Id TEXT PRIMARY KEY,
 	                            Name TEXT
                             );");
-                conn.Execute("INSERT INTO \"User\" (Id,Name) VALUES\r\n\t ('1','张三');");
+                conn.Execute("INSERT INTO \"User\" (Id,Name) VALUES\r\n\t ('u1','张三');");
+            }
+        }
+
+        private static void InitUserBookTable(IApplicationBuilder app)
+        {
+            var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "userbook.db");
+            if (!File.Exists(dbPath)) File.Create(dbPath);
+            using var scope = app.ApplicationServices.CreateScope();
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork<UserBookDbContext>>();
+            using var conn = unitOfWork.GetConnection();
+            var count = conn.ExecuteScalar<int>("select count(*)  from sqlite_master where type='table' and name = 'UserBook'");
+            if (count <= 0)
+            {
+                conn.Execute(@"
+                           CREATE TABLE ""UserBook"" (
+	                            UserId TEXT,
+                                BookId INTEGER,
+	                            Name TEXT,
+                                constraint pk_UserBook primary key (UserId,BookId)
+                            );");
+                conn.Execute("INSERT INTO \"UserBook\" (UserId,BookId,Name) VALUES\r\n\t ('u1',1,'张三');");
             }
         }
     }
