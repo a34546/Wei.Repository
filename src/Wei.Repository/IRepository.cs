@@ -127,6 +127,16 @@ namespace Wei.Repository
         /// </summary>
         void Update(IEnumerable<TEntity> entities);
 
+        /// <summary>
+        /// 根据查询条件更新指定字段
+        /// </summary>
+        IEnumerable<TEntity> Update(Expression<Func<TEntity, bool>> predicate, Action<TEntity> updateAction);
+
+        /// <summary>
+        /// 根据查询条件更新指定字段
+        /// </summary>
+        Task<IEnumerable<TEntity>> UpdateAsync(Expression<Func<TEntity, bool>> predicate, Action<TEntity> updateAction, CancellationToken cancellationToken = default);
+
         #endregion Update
 
         #region Delete

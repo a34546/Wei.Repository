@@ -13,7 +13,7 @@ namespace Wei.Repository
         where TEntity : class
     {
         internal abstract DbContext DbContext { get; set; }
-        internal virtual DbSet<TEntity> Table => DbContext.Set<TEntity>();
+        internal DbSet<TEntity> Table => DbContext.Set<TEntity>();
 
         public IQueryable<TEntity> Query() => Table.AsQueryable();
         public IQueryable<TEntity> QueryNoTracking() => Table.AsQueryable().AsNoTracking();
@@ -46,6 +46,19 @@ namespace Wei.Repository
             return entity;
         }
         public virtual void Update(IEnumerable<TEntity> entities) => DbContext.UpdateRange(entities);
+        public virtual IEnumerable<TEntity> Update(Expression<Func<TEntity, bool>> predicate, Action<TEntity> updateAction)
+        {
+            var entities = Query(predicate).ToList();
+            entities?.ForEach(updateAction);
+            return entities;
+        }
+        public virtual async Task<IEnumerable<TEntity>> UpdateAsync(Expression<Func<TEntity, bool>> predicate, Action<TEntity> updateAction, CancellationToken cancellationToken = default)
+        {
+            var entities = await Query(predicate).ToListAsync(cancellationToken);
+            entities?.ForEach(updateAction);
+            return entities;
+        }
+
         public virtual void Delete(TEntity entity) => Table.Remove(entity);
         public virtual void Delete(params object[] id)
         {
@@ -54,16 +67,16 @@ namespace Wei.Repository
                 Delete(entity);
         }
         public virtual void Delete(Expression<Func<TEntity, bool>> predicate) => Table.RemoveRange(Table.Where(predicate));
-        public bool Any() => Query().Any();
-        public Task<bool> AnyAsync(CancellationToken cancellationToken = default) => Query().AnyAsync(cancellationToken);
-        public bool Any(Expression<Func<TEntity, bool>> predicate) => Query().Any(predicate);
-        public Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default) => Query().AnyAsync(predicate, cancellationToken);
+        public virtual bool Any() => Query().Any();
+        public virtual Task<bool> AnyAsync(CancellationToken cancellationToken = default) => Query().AnyAsync(cancellationToken);
+        public virtual bool Any(Expression<Func<TEntity, bool>> predicate) => Query().Any(predicate);
+        public virtual Task<bool> AnyAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default) => Query().AnyAsync(predicate, cancellationToken);
         public virtual int Count() => Query().Count();
         public virtual Task<int> CountAsync(CancellationToken cancellationToken = default) => Query().CountAsync(cancellationToken);
         public virtual int Count(Expression<Func<TEntity, bool>> predicate) => Query().Where(predicate).Count();
         public virtual Task<int> CountAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default) => Query().CountAsync(predicate, cancellationToken);
 
-        protected virtual void AttachEntity(TEntity entity)
+        private void AttachEntity(TEntity entity)
         {
             var d = DbContext.ChangeTracker.Entries().ToList();
             var entry = DbContext.ChangeTracker.Entries().FirstOrDefault(ent => ent.Entity == entity);

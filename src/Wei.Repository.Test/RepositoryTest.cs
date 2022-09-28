@@ -106,7 +106,7 @@ namespace Wei.Repository.Test
                 UnitOfWork.SaveChanges();
             }
 
-            var update1list = TestRepository.Query(x =>x.Name== "UpdateRange1").ToList();
+            var update1list = TestRepository.Query(x => x.Name == "UpdateRange1").ToList();
             foreach (var item in update1list)
             {
                 item.Name = "UpdateRange111";
@@ -137,6 +137,24 @@ namespace Wei.Repository.Test
 
         }
 
+        [Fact, Order(4)]
+        public async Task UpdateBy()
+        {
+            if (!TestRepository.Any(x => x.Name == "UpdateBy"))
+            {
+                TestRepository.Insert(new List<Test> {
+                    new Test { Id = Guid.NewGuid().ToString(), Name = "UpdateBy" },
+                    new Test { Id = Guid.NewGuid().ToString(), Name = "UpdateBy" },
+                });
+                UnitOfWork.SaveChanges();
+            }
+            var name = "UpdateBy" + Guid.NewGuid();
+            var entities = await TestRepository.UpdateAsync(x => x.Name == "UpdateBy", x => x.Name = name);
+            await UnitOfWork.SaveChangesAsync();
+            var res1 = TestRepository.QueryNoTracking(x => x.Name == name).ToList();
+            Assert.True(entities.Count() == res1.Count);
+
+        }
 
         [Fact, Order(5)]
         public async void Delete()

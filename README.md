@@ -130,6 +130,9 @@ public class UserController : ControllerBase
     TEntity Update(TEntity entity);
     // 批量更新
     void Update(IEnumerable<TEntity> entities);
+    // 根据表达式条件更新指定字段
+    IEnumerable<TEntity> Update(Expression<Func<TEntity, bool>> predicate, Action<TEntity> updateAction);
+    Task<IEnumerable<TEntity>> UpdateAsync(Expression<Func<TEntity, bool>> predicate, Action<TEntity> updateAction, CancellationToken cancellationToken = default);
     #endregion Update
 
     #region Delete
