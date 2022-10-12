@@ -9,8 +9,8 @@
 		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
 		<NeutralLanguage>zh</NeutralLanguage>
 		<PackageProjectUrl>https://github.com/a34546/Wei.Repository.git</PackageProjectUrl>
-		<Version>2.0.0.1</Version>
-		<FileVersion>2.0.0.1</FileVersion>
+		<Version>2.0.0.2</Version>
+		<FileVersion>2.0.0.2</FileVersion>
 		<RepositoryType>GitHub</RepositoryType>
 		<RepositoryURL>https://github.com/a34546/Wei.Repository.git</RepositoryURL>
 	</PropertyGroup>
