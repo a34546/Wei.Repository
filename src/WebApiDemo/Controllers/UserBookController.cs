@@ -28,9 +28,9 @@ namespace WebApiDemo.Controllers
         }
 
         [HttpGet("FirstOrDefaultAsync")]
-        public Task<UserBook> FirstOrDefaultAsync(CancellationToken cancellationToken)
+        public Task<UserBook> FirstOrDefaultAsync()
         {
-            return _repository.FirstOrDefaultAsync(cancellationToken);
+            return _repository.FirstOrDefaultAsync(HttpContext.RequestAborted);
         }
 
         /// <summary>
@@ -39,22 +39,22 @@ namespace WebApiDemo.Controllers
         /// <param name="userId"></param>
         /// <param name="bookId"></param>
         [HttpGet("GetByCompositeKey")]
-        public async Task<UserBook> GetByCompositeKey([Required] string userId, [Required] int bookId, CancellationToken cancellationToken)
+        public async Task<UserBook> GetByCompositeKey([Required] string userId, [Required] int bookId)
         {
             var entity = await _unitOfWork.DbContext.Set<UserBook>().FindAsync(userId, bookId);
             return entity;
         }
 
         [HttpGet("GetAllAsync")]
-        public Task<IEnumerable<UserBook>> GetAllAsync(CancellationToken cancellationToken)
+        public Task<IEnumerable<UserBook>> GetAllAsync()
         {
-            return _repository.GetAllAsync(cancellationToken);
+            return _repository.GetAllAsync(HttpContext.RequestAborted);
         }
 
         [HttpGet("InsertAsync")]
-        public async Task<UserBook> InsertAsync([Required] string userId, [Required] int bookId, [Required] string name, CancellationToken cancellationToken)
+        public async Task<UserBook> InsertAsync([Required] string userId, [Required] int bookId, [Required] string name)
         {
-            var entity = await _repository.InsertAsync(new UserBook { BookId = bookId, UserId = userId, Name = name }, cancellationToken);
+            var entity = await _repository.InsertAsync(new UserBook { BookId = bookId, UserId = userId, Name = name }, HttpContext.RequestAborted);
             _unitOfWork.SaveChanges();
             return entity;
         }

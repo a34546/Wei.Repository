@@ -5,12 +5,14 @@ using Wei.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddRepository<BookDbContext>(ops => ops.UseSqlite("Data Source=book.db"));
+// 自动注入服务
+builder.Services.ConfigureAttributeServices();
+builder.Services.AddRepository<BookDbContext>(ops => ops.UseSqlite($"Data Source={Path.Combine(Environment.CurrentDirectory, "book.db")}"));
 // 读写分离场景，也可以建两个DbContext来实现
-builder.Services.AddRepository<UserDbContext>(ops => ops.UseSqlite("Data Source=user.db"));
-builder.Services.AddRepository<UserReadonlyDbContext>(ops => ops.UseSqlite("Data Source=user.db"));
+builder.Services.AddRepository<UserDbContext>(ops => ops.UseSqlite($"Data Source={Path.Combine(Environment.CurrentDirectory, "user.db")}"));
+builder.Services.AddRepository<UserReadonlyDbContext>(ops => ops.UseSqlite($"Data Source={Path.Combine(Environment.CurrentDirectory, "user.db")}"));
 // 复合主键使用场景
-builder.Services.AddRepository<UserBookDbContext>(ops => ops.UseSqlite("Data Source=userbook.db"));
+builder.Services.AddRepository<UserBookDbContext>(ops => ops.UseSqlite($"Data Source={Path.Combine(Environment.CurrentDirectory, "userbook.db")}"));
 
 // Mysql,SqlServer 可以安装驱动后自行测试，demo暂只用sqllite测试
 //builder.Services.AddRepository<UserDbContext>(ops => ops.UseMysql("xxx"));

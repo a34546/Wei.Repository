@@ -14,8 +14,6 @@ namespace WebApiDemo
 
         private static void InitBookTable(IApplicationBuilder app)
         {
-            var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "book.db");
-            if (!File.Exists(dbPath)) File.Create(dbPath);
             using var scope = app.ApplicationServices.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork<BookDbContext>>();
             using var conn = unitOfWork.GetConnection();
@@ -33,8 +31,6 @@ namespace WebApiDemo
 
         private static void InitUserTable(IApplicationBuilder app)
         {
-            var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "user.db");
-            if (!File.Exists(dbPath)) File.Create(dbPath);
             using var scope = app.ApplicationServices.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork<UserDbContext>>();
             using var conn = unitOfWork.GetConnection();
@@ -52,8 +48,6 @@ namespace WebApiDemo
 
         private static void InitUserBookTable(IApplicationBuilder app)
         {
-            var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "userbook.db");
-            if (!File.Exists(dbPath)) File.Create(dbPath);
             using var scope = app.ApplicationServices.CreateScope();
             var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork<UserBookDbContext>>();
             using var conn = unitOfWork.GetConnection();

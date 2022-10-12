@@ -30,21 +30,21 @@ namespace WebApiDemo.Controllers
         }
 
         [HttpGet("FirstOrDefaultAsync")]
-        public Task<User> FirstOrDefaultAsync(CancellationToken cancellationToken)
+        public Task<User> FirstOrDefaultAsync()
         {
-            return _repository.FirstOrDefaultAsync(cancellationToken);
+            return _repository.FirstOrDefaultAsync(HttpContext.RequestAborted);
         }
 
         [HttpGet("GetAllAsync")]
-        public Task<IEnumerable<User>> GetAllAsync(CancellationToken cancellationToken)
+        public Task<IEnumerable<User>> GetAllAsync()
         {
-            return _repository.GetAllAsync(cancellationToken);
+            return _repository.GetAllAsync(HttpContext.RequestAborted);
         }
 
         [HttpPost]
-        public async Task<User> InsertAsync(string name, CancellationToken cancellationToken)
+        public async Task<User> InsertAsync(string name)
         {
-            var entity = await _userRepository.InsertAsync(new User { Name = name }, cancellationToken);
+            var entity = await _userRepository.InsertAsync(new User { Name = name }, HttpContext.RequestAborted);
             _unitOfWork.SaveChanges();
             return entity;
         }

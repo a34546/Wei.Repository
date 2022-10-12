@@ -1,5 +1,5 @@
 # Wei.Repository
-基于.Net6平台,EFCore+Dapper 封装Repository，实现UnitOfWork,提供基本的CURD操作，支持多数据，多DbContext
+基于.Net6平台,EFCore+Dapper 封装Repository，实现UnitOfWork,提供基本的CURD操作，支持多数据库，多DbContext
 
 
 ## 快速开始
@@ -213,6 +213,29 @@ public async Task InsertWithTransaction(User user1, User user2)
     }
 }
 ```
-**5.其他**
-- 支持多数据库连接，多个DbContext,具体请查看Demo
+
+**5.服务自动注入**
+> 实现了三种服务类型注入
+- SingletonServiceAttribute  
+- ScopedServiceAttribute  
+- TransientServiceAttribute  
+
+```cs
+[ScopedService]
+public class BookService : IBookService
+{
+}
+
+public interface IBookService
+{
+}
+```
+需要在服务注入是调用配置特性服务注入
+```cs
+// 自动注入服务
+builder.Services.ConfigureAttributeServices();
+```
+
+**6.其他**
+> 支持多数据库连接，多个DbContext,具体请查看Demo
 

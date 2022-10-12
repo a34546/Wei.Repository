@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using WebApiDemo.Data;
+using WebApiDemo.Services.Impl;
 using Wei.Repository;
 
 namespace WebApiDemo.Controllers
@@ -8,9 +9,7 @@ namespace WebApiDemo.Controllers
     [Route("[controller]")]
     public class BookController : ControllerBase
     {
-        // 泛型仓储
-        // 多个DbContext时，如果不传入指定DbContext，默认使用第一个注入的DbContext
-        private readonly IRepository<Book> _repository;
+        private readonly IBookService _bookService;
 
         //自定义仓储
         private readonly IBookRepository _bookRepository;
@@ -20,31 +19,31 @@ namespace WebApiDemo.Controllers
         private readonly IUnitOfWork _unitOfWork;
 
 
-        public BookController(IRepository<Book> repository,
+        public BookController(IBookService bookService,
             IBookRepository bookRepository,
             IUnitOfWork unitOfWork)
         {
-            _repository = repository;
+            _bookService = bookService;
             _bookRepository = bookRepository;
             _unitOfWork = unitOfWork;
         }
 
         [HttpGet("FirstOrDefaultAsync")]
-        public Task<Book> FirstOrDefaultAsync(CancellationToken cancellationToken)
+        public Task<Book> FirstOrDefaultAsync()
         {
-            return _repository.FirstOrDefaultAsync(cancellationToken);
+            return _bookRepository.FirstOrDefaultAsync(HttpContext.RequestAborted);
         }
 
         [HttpGet("GetAllAsync")]
-        public Task<IEnumerable<Book>> GetAllAsync(CancellationToken cancellationToken)
+        public Task<IEnumerable<Book>> GetAllAsync()
         {
-            return _repository.GetAllAsync(cancellationToken);
+            return _bookService.GetAllAsync(HttpContext.RequestAborted);
         }
 
         [HttpPost]
-        public async Task<Book> InsertAsync(string name, CancellationToken cancellationToken)
+        public async Task<Book> InsertAsync(string name)
         {
-            var entity = await _bookRepository.InsertAsync(new Book { Name = name }, cancellationToken);
+            var entity = await _bookRepository.InsertAsync(new Book { Name = name }, HttpContext.RequestAborted);
             _unitOfWork.SaveChanges();
             return entity;
         }

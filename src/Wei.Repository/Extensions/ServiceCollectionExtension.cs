@@ -3,8 +3,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.Loader;
 using System.Text;
 
 namespace Wei.Repository
@@ -53,6 +56,23 @@ namespace Wei.Repository
                 }
             }
 
+        }
+
+        public static IServiceCollection ConfigureAttributeServices(this IServiceCollection services)
+        {
+            var types = AssemblyLoadContext
+               .Default
+               .Assemblies
+               .Where(x => !x.GetName().Name.StartsWith("Microsoft") && !x.GetName().Name.StartsWith("System"))
+               .SelectMany(x => x.GetTypes())
+               .Where(x => x.IsClass && !x.IsAbstract && x.IsPublic)
+               .Where(x => x.GetCustomAttribute<ServiceAttribute>() != null);
+            foreach (var type in types)
+            {
+                var serviceAttr = type.GetCustomAttribute<ServiceAttribute>();
+                serviceAttr.Configure(services, type);
+            }
+            return services;
         }
     }
 }
